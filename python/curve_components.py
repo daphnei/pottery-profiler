@@ -1,9 +1,8 @@
 from svg.path import Path, Line, Arc, CubicBezier, QuadraticBezier, parse_path
 from point import Point
 
-# Find index i such that dd[i] < d < dd[i+1]
 def FindIndex(dd, d):
-	'''dd is an array of doubles. d is a double '''
+	'''A helper method to find index i such that dd[i] < d < dd[i+1]'''
 
 	i = 0
  	for j in xrange(0, len(dd)):
@@ -13,15 +12,28 @@ def FindIndex(dd, d):
 	return i;
 
 class Component(object):
+	'''A base class that all sVG components we support should extend.'''
+
 	def get_length(self):
 		return 0
+
+	def interpolate_points(self, fractions):
+		return None
 
 class MyLine(Component):
 	def __init__(self, ln):
 		self.ln = ln
 
-	def get_length():
+	def get_length(self):
 		return self.ln.length()
+
+	def interpolate_points(self, fractions):
+		QQ = []
+		for fraction in fractions:
+			p = self.ln.point(fraction)
+			QQ.append( Point(p.real, p.imag) )
+
+		return QQ
 
 class MyBezCurve(Component):
 	'''A wrapper around svg.path's CubicBezier class that adds some useful helper methods.'''
