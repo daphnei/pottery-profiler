@@ -39,7 +39,7 @@ def get_path_from_svg(svg_file):
 
 if __name__ == "__main__":
 	if len(sys.argv) != 2:
-		print "Input svg path"
+		print "USAGE: python pottery_predict.py <svg file>"
 		exit(1)
 
 	path = get_path_from_svg(sys.argv[1])
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 			print "LINE: " + str(p)
 
 	#The desired distance between points along the curve
-	seg_length = 20;
+	seg_length = 5;
 
 	#Iterate over the components in the svg, finding equidistant points along the curve.
 	total_length = sum(c.get_length() for c in components)	
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 	#write an output svg with a circle marker at each chosen point position
 	output_svg = svgwrite.Drawing('output.svg')
 	for p in interped_points:
-		output_svg.add(output_svg.circle(center=(p.x, p.y), r=1.6, fill=svgwrite.rgb(100, 0, 0, '%')))
+		output_svg.add(output_svg.circle(center=(p.x, p.y), r=1.2, fill=svgwrite.rgb(100, 0, 0, '%')))
 	output_svg.save()
 
 
