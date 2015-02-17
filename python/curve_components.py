@@ -50,6 +50,7 @@ class MyBezCurve(Component):
 	def get_length(self):
 		if self.cached_arc_lengh == None:
 			n = self.precision
+			s = 1.0/(n-1);
 
 			PP = [None] * n; #An array of points
 	
@@ -63,7 +64,10 @@ class MyBezCurve(Component):
 		return self.cached_arc_lengh
 
 
-	def interpolate_points(self, m=10):
+	def interpolate_points(self, fractions):
+		'''Input is alist of values between 0 and 1 indicates distance along the arclength of the curve.
+			This function returns a list of the points at each of these distances.'''
+
 		n = self.precision
 
 		'''n is the amount of precision desired. m is the number of points to generate'''
@@ -88,17 +92,12 @@ class MyBezCurve(Component):
 		for i in xrange(1, n):
 			arclength_to_point[i] = arclength_to_point[i]/arclength_to_point[n-1];
 
-		#Number of points to place on curve
-		step = 1.0/(m-1)
+		QQ = [] #An array of points
 
-		QQ = [None] * m; #An array of points
-
-		for r in xrange(0, m):
-			d = r*step;
-			print("d = " + str(d))
+		for d in fractions:
 			i = FindIndex(arclength_to_point, d);
 			u = (d - arclength_to_point[i]) / (arclength_to_point[i+1] - arclength_to_point[i]);
 			t = (i + u)*s;
-			QQ[r] = self.get_point_from_t(t);
+			QQ.append(self.get_point_from_t(t))
 
 		return QQ
