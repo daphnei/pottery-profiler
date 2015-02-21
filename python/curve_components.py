@@ -20,6 +20,12 @@ class Component(object):
 	def interpolate_points(self, fractions):
 		return None
 
+	def get_start_point(self):
+		return None
+
+	def get_end_point(self):
+		return None
+
 class MyLine(Component):
 	def __init__(self, ln):
 		self.ln = ln
@@ -34,6 +40,14 @@ class MyLine(Component):
 			QQ.append( Point(p.real, p.imag) )
 
 		return QQ
+
+	def get_start_point(self):
+		pt = self.ln.point(0)
+		return Point(pt.real, pt.imag)
+
+	def get_end_point(self):
+		pt = self.ln.point(1)
+		return Point(pt.real, pt.imag)
 
 class MyBezCurve(Component):
 	'''A wrapper around svg.path's CubicBezier class that adds some useful helper methods.'''
@@ -113,3 +127,9 @@ class MyBezCurve(Component):
 			QQ.append(self.get_point_from_t(t))
 
 		return QQ
+
+	def get_start_point(self):
+		return self.get_point_from_t(0)
+
+	def get_end_point(self):
+		return self.get_point_from_t(1)
