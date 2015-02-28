@@ -16,7 +16,7 @@ def get_path_from_svg(svg_file):
 
 	try:
 		tree = etree.parse(svg_file)
-	except Error:
+	except:
 		print "Unable to parse the file. Are you sure it is an SVG?" 
 		exit(1)
 
@@ -48,21 +48,53 @@ def get_points_along_path(components, seg_length = 5):
 
 	interped_points = []
 
-	cur_length = 0
-	i = 0
+	#One path consists of multiple components. These components can either be Bezier curves
+	#or straight lines. We want to choose a point every "seg_length" units along the entire
+	#path, which means we can't necessarily start the points at the very beginning of each
+	#component.
 	leftovers = 0
+	old_comp_length = 0
 	for comp in components:
-		cur_comp_length = comp.get_length()
-		d = leftovers
-		fractions = []
-		while d < cur_comp_length:
-			fractions.append(d / float(cur_comp_length))
-			d += seg_length
-		leftovers = d - cur_comp_length
+		#Gets the arc length of the component
+		comp_length = comp.get_length()
 
-		interped_points += comp.interpolate_points(fractions)
+		print "\nWorking on component with length " + str(comp_length)
+
+		if comp_length != 0:
+			d = leftovers
+			goal_lengths = []
+			while d <= comp_length:
+
+				goal_lengths.append(d)
+				d += seg_length
+			print "The comp_length is " + str(comp_length) + " and d went up to " + str(d)
+
+			leftovers = d - comp_length
+			print "The leftovers are " + str(leftovers)
+
+			fractions = map(lambda x: x / comp_length, goal_lengths)
+			print fractions
+			interped_points += comp.interpolate_points(fractions)
 
 	return interped_points
+
+def find_components_on_side(components, clockwise, index_of_highest, index_of_lowest):
+	components_on_side = []
+
+	i = index_of_highest;
+	while True:
+		i = i + 1 if clockwise else i - 1
+		if i == len(components):
+			i = 0
+		elif i == -1:
+			i = len(components) - 1
+
+		if i == index_of_lowest:
+			break
+
+		components_on_side.append(components[i])
+
+	return components_on_side
 
 def split_curve(components):
 	#Find the component with the topmost start/end point
@@ -85,9 +117,8 @@ def split_curve(components):
 	left_profile = [] #The inner side of the profile.
 	right_profile = [] #The outside side of the profile.
 
-	#Figure out whether this component should be considered part of the
-	#inner profile or outer profile, and figure out which direction
-	#the curve was digitized in (clockwise or counterclockwise)
+	#figure out which direction the curve was digitized in (clockwise or counterclockwise)
+	#Also, decide whether the topmost component should be in the left or the right profile.
 	top_comp = components[index_of_highest]
 	start = top_comp.get_start_point()
 	end = top_comp.get_end_point()
@@ -104,27 +135,39 @@ def split_curve(components):
 		else:
 			left_profile.append(top_comp)
 
+	print "This path is " + str("CLOCKWISE" if clockwise else "COUNTER-CLOCKWISE")
+
 	#Find all the components that belong to the right curve.
-	i = index_of_highest;
-	while i != index_of_lowest:
-		i = i + 1 if clockwise else i - 1
-		if i == len(components):
-			i = 0
-		elif i == -1:
-			i = len(components) - 1
+	right_profile += find_components_on_side(components, clockwise, index_of_highest, index_of_lowest)
+	left_profile += find_components_on_side(components, not clockwise, index_of_highest, index_of_lowest)
 
-		right_profile.append(components[i])
+	#Now decide if the bottommost component should be in the left or the right profile.
+	bottom_comp = components[index_of_lowest]
+	start = bottom_comp.get_start_point()
+	end = bottom_comp.get_end_point()
+	if (start.x < end.x):
+		if (start.y > end.y):
+			right_profile.append(bottom_comp)
+		else:
+			left_profile.append(bottom_comp)
+	else:
+		if (start.y > end.y):
+			left_profile.append(bottom_comp)
+		else:
+			right_profile.append(bottom_comp)
 
-	#Find all the components that belong to the left curve.
-	i = index_of_highest;
-	while i != index_of_lowest:
-		i = i - 1 if clockwise else i + 1
-		if i == len(components):
-			i = 0
-		elif i == -1:
-			i = len(components) - 1
+	#If the curve was digitized in a clockwise direction than the order of the paths
+	#in the left profile needs to be reversed so that the 0th interpolated point
+	#is at the very top of the profile, not the very bottom.
+	if clockwise:
+		for c in left_profile:
+			c.reverse()
 
-		left_profile.append(components[i])
+	#Likewise, the paths in the right profile need to be reverse if the digitization order
+	#was counter-clockwise.
+	if not clockwise:
+		for c in right_profile:
+			c.reverse()
 
 	return left_profile, right_profile
 
@@ -154,13 +197,10 @@ if __name__ == "__main__":
 	interped_points_inner = get_points_along_path(inner_profile)
 	interped_points_outer = get_points_along_path(outer_profile)
 
-
 	#write an output svg with a circle marker at each chosen point position
 	output_svg = svgwrite.Drawing('output.svg')
 	for p in interped_points_inner:
-		output_svg.add(output_svg.circle(center=(p.x, p.y), r=1.2, fill=svgwrite.rgb(100, 0, 0, '%')))
+		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(100, 0, 0, '%')))
 	for p in interped_points_outer:
-		output_svg.add(output_svg.circle(center=(p.x, p.y), r=1.2, fill=svgwrite.rgb(0, 0, 100, '%')))
+		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(0, 0, 100, '%')))
 	output_svg.save()
-
-

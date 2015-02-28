@@ -26,6 +26,9 @@ class Component(object):
 	def get_end_point(self):
 		return None
 
+	def reverse(self):
+		return
+
 class MyLine(Component):
 	def __init__(self, ln):
 		self.ln = ln
@@ -48,6 +51,9 @@ class MyLine(Component):
 	def get_end_point(self):
 		pt = self.ln.point(1)
 		return Point(pt.real, pt.imag)
+
+	def reverse(self):
+		self.ln.start, self.ln.end = self.ln.end, self.ln.start
 
 class MyBezCurve(Component):
 	'''A wrapper around svg.path's CubicBezier class that adds some useful helper methods.'''
@@ -133,3 +139,7 @@ class MyBezCurve(Component):
 
 	def get_end_point(self):
 		return self.get_point_from_t(1)
+
+	def reverse(self):
+		self.cb.control1, self.cb.control2 = self.cb.control2, self.cb.control1
+		self.cb.start, self.cb.end = self.cb.end, self.cb.start
