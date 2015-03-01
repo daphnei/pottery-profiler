@@ -64,7 +64,7 @@ class MyBezCurve(Component):
 		self.cb = cb
 		self.cached_arc_lengh = None
 
-		self.precision = 10000
+		self.precision = 1000
 
 	def get_points(self):
 		pts = []

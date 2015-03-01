@@ -5,6 +5,8 @@ import numpy
 from point import Point
 import math
 import svgwrite
+import jsonpickle
+import os
 
 from svg.path import Path, Line, Arc, CubicBezier, QuadraticBezier, parse_path
 from curve_components import *
@@ -24,9 +26,10 @@ def get_path_from_svg(svg_file):
 	all_paths = tree.findall("{*}path")
 
 	if len(all_paths) == 0:
-		return None
+		print "WARNING: The SVG is empty."
+		return []
 	if len(all_paths) > 1:
-		print "WARNING: The input SVG contains multiple paths. Only the first one will be considered."
+		print "WARNING: The SVG contains multiple paths. Only the first one will be considered."
 
 	path_node = all_paths[0]
 	path_string = path_node.get("d")
@@ -34,8 +37,17 @@ def get_path_from_svg(svg_file):
 	#The path node in the SVG contains the string storing the path info, but this is not easy to
 	#work with directly. Therefore parse this string into a path datastructure.
 	path = parse_path(path_string)
+	
+	#we only care about lines and Bezier curves. Create a list of just these two types, and also
+	#wrap each of them in an object that provides some helpful utility methods.
+	components = []
+	for p in path:
+		if type(p) is CubicBezier:
+			components.append(MyBezCurve(p))
+		elif type(p) is Line:
+			components.append(MyLine(p))
 
-	return path
+	return components
 
 def get_points_along_path(components, seg_length = 5):
 	''' Inputs are
@@ -58,149 +70,120 @@ def get_points_along_path(components, seg_length = 5):
 		#Gets the arc length of the component
 		comp_length = comp.get_length()
 
-		print "\nWorking on component with length " + str(comp_length)
-
 		if comp_length != 0:
 			d = leftovers
 			goal_lengths = []
 			while d <= comp_length:
-
 				goal_lengths.append(d)
 				d += seg_length
-			print "The comp_length is " + str(comp_length) + " and d went up to " + str(d)
 
 			leftovers = d - comp_length
-			print "The leftovers are " + str(leftovers)
 
 			fractions = map(lambda x: x / comp_length, goal_lengths)
-			print fractions
 			interped_points += comp.interpolate_points(fractions)
 
 	return interped_points
 
-def find_components_on_side(components, clockwise, index_of_highest, index_of_lowest):
-	components_on_side = []
+def split_profile_points(points):
+	points_y = list(p.y for p in points)
 
-	i = index_of_highest;
-	while True:
-		i = i + 1 if clockwise else i - 1
-		if i == len(components):
-			i = 0
-		elif i == -1:
-			i = len(components) - 1
+	#Find the index of the topmost point
+	top_index = points_y.index(min(points_y))
 
-		if i == index_of_lowest:
-			break
+	#Find the index of the bottommost point.
+	bottom_index = points_y.index(max(points_y))
 
-		components_on_side.append(components[i])
-
-	return components_on_side
-
-def split_curve(components):
-	#Find the component with the topmost start/end point
-	index_of_highest = 0
-	index_of_lowest = 0
-	highest_y = sys.maxint #The y value closest to 0 (the top of the page)
-	lowest_y = -sys.maxint #The largest y (furthest from the top of the page)
-	for i in xrange(0, len(components)):
-		start_point = components[i].get_start_point()
-		end_point = components[i].get_end_point()
-
-		if min(start_point.y, end_point.y) < highest_y:
-			index_of_highest = i
-			highest_y = min(start_point.y, end_point.y)
-
-		if max(start_point.y, end_point.y) > lowest_y:
-			index_of_lowest = i
-			lowest_y = max(start_point.y, end_point.y)
-
-	left_profile = [] #The inner side of the profile.
-	right_profile = [] #The outside side of the profile.
-
-	#figure out which direction the curve was digitized in (clockwise or counterclockwise)
-	#Also, decide whether the topmost component should be in the left or the right profile.
-	top_comp = components[index_of_highest]
-	start = top_comp.get_start_point()
-	end = top_comp.get_end_point()
-	if (start.x < end.x):
-		clockwise = True
-		if (start.y > end.y):
-			left_profile.append(top_comp)
-		else:
-			right_profile.append(top_comp)
+	if (bottom_index < top_index):
+		right_profile = points[top_index:] + points[0:bottom_index+1]
+		left_profile = points[bottom_index:top_index+1]
+	elif (top_index < bottom_index):
+		right_profile = points[top_index:bottom_index+1]
+		left_profile = points[bottom_index:] + points[0:top_index+1]
 	else:
-		clockwise = False
-		if (start.y > end.y):
-			right_profile.append(top_comp)
-		else:
-			left_profile.append(top_comp)
+		print "TODO: deal with this"
 
-	print "This path is " + str("CLOCKWISE" if clockwise else "COUNTER-CLOCKWISE")
-
-	#Find all the components that belong to the right curve.
-	right_profile += find_components_on_side(components, clockwise, index_of_highest, index_of_lowest)
-	left_profile += find_components_on_side(components, not clockwise, index_of_highest, index_of_lowest)
-
-	#Now decide if the bottommost component should be in the left or the right profile.
-	bottom_comp = components[index_of_lowest]
-	start = bottom_comp.get_start_point()
-	end = bottom_comp.get_end_point()
-	if (start.x < end.x):
-		if (start.y > end.y):
-			right_profile.append(bottom_comp)
-		else:
-			left_profile.append(bottom_comp)
-	else:
-		if (start.y > end.y):
-			left_profile.append(bottom_comp)
-		else:
-			right_profile.append(bottom_comp)
-
-	#If the curve was digitized in a clockwise direction than the order of the paths
-	#in the left profile needs to be reversed so that the 0th interpolated point
-	#is at the very top of the profile, not the very bottom.
-	if clockwise:
-		for c in left_profile:
-			c.reverse()
-
-	#Likewise, the paths in the right profile need to be reverse if the digitization order
-	#was counter-clockwise.
-	if not clockwise:
-		for c in right_profile:
-			c.reverse()
+	#Ensure that the 0th element of each profile is the element at the very top
+	left_profile.reverse()
 
 	return left_profile, right_profile
 
+def draw_points_to_output_file(left_profile_points, right_profile_points):
+	'''	write an output svg with a circle marker at each chosen point position '''
+
+	output_svg = svgwrite.Drawing('output.svg')
+	for p in left_profile_points:
+		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(100, 0, 0, '%')))
+	for p in right_profile_points:
+		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(0, 0, 100, '%')))
+	output_svg.save(left_profile_points, right_profile_points)
+
+def compute_fft_points(points):
+	#We only care about the x values since 
+	#points_x = p.x for p in points
+	
+	coords = numpy.array(points).transpose()
+
+	# Position the curve so that the top most point is at the origin (0,0)
+	x = list(p.x - coords[0].x for p in coords)
+	y = list(p.y - coords[0].y for p in coords)
+
+	# z = x + jy
+	z = [complex(x[i],y[i]) for i in range(len(x))]
+
+	# Fourier descriptors
+	z_f = numpy.fft.fft(numpy.asarray(z))
+	
+	# scale invariance 
+	z_f1 = [m/abs(z_f[1]) for m in z_f]
+	
+	return z_f1
+
+def save_fft_for_all_svgs(dir):
+	fft_data = {}
+
+	''' Goes through every .svg in the input directory, and saves its fourier transform'''
+	for filename in os.listdir(dir):
+		if filename.endswith(".svg"):
+			path = get_path_from_svg(dir + filename)
+
+			#If the svg didn't contain any path, then skip doing any calculation on it.
+			if path == []:
+				data = {}
+				data["left_fft"] = []
+				data["right_fft"] = []
+
+				fft_data[filename] = data
+			else:
+				points = get_points_along_path(path)
+				left_profile_points, right_profile_points = split_profile_points(points)
+
+				data = {}
+				data["left_fft"] = compute_fft_points(left_profile_points)
+				data["right_fft"] = compute_fft_points(right_profile_points)
+
+				fft_data[filename] = data
+
+	pickle_string = jsonpickle.encode(fft_data)
+	pickle_file = open("fft_data.json", "w") # write mode
+	pickle_file.write(pickle_string)
+	pickle_file.close()
+
+def check_one_svg(to_check):
+	'''Compares one svg to all the other svgs in the directory. Prints out match scores.'''
 
 if __name__ == "__main__":
 	if len(sys.argv) != 2:
 		print "USAGE: python pottery_predict.py <svg file>"
 		exit(1)
 
-	path = get_path_from_svg(sys.argv[1])
+	save_fft_for_all_svgs(sys.argv[1])
 
-	#Accumulate all of the lines and cubic bezier curves in the svg.
-	components = []
-	for p in path:
-		print p
-		if type(p) is CubicBezier:
-			#print "CUBIC BEZ: " + str(p) + " -!--! " + str(type(p.start))
-			components.append(MyBezCurve(p))
-		elif type(p) is Line:
-			components.append(MyLine(p))
-			#print "LINE: " + str(p)
+	# path = get_path_from_svg(sys.argv[1])
 
-	#Split the components into those that are part of the left edge
-	#and those that are part of the right edge.
-	inner_profile, outer_profile = split_curve(components)
+	# points = get_points_along_path(path)
+	# left_profile_points, right_profile_points = split_profile_points(points)
 
-	interped_points_inner = get_points_along_path(inner_profile)
-	interped_points_outer = get_points_along_path(outer_profile)
+	# l = compute_fft_points(left_profile_points)
+	# r = compute_fft_points(right_profile_points)
 
-	#write an output svg with a circle marker at each chosen point position
-	output_svg = svgwrite.Drawing('output.svg')
-	for p in interped_points_inner:
-		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(100, 0, 0, '%')))
-	for p in interped_points_outer:
-		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(0, 0, 100, '%')))
-	output_svg.save()
+	# draw_points_to_output_file(l, r)
