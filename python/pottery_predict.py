@@ -7,6 +7,8 @@ import math
 import svgwrite
 import jsonpickle
 import os
+import pickle
+import cmath
 
 from svg.path import Path, Line, Arc, CubicBezier, QuadraticBezier, parse_path
 from curve_components import *
@@ -19,7 +21,7 @@ def get_path_from_svg(svg_file):
 	try:
 		tree = etree.parse(svg_file)
 	except:
-		print "Unable to parse the file. Are you sure it is an SVG?" 
+		print "Unable to parse the file. Are you sure it is an SVG?"
 		exit(1)
 
 	#Find all paths in the SVG
@@ -37,7 +39,7 @@ def get_path_from_svg(svg_file):
 	#The path node in the SVG contains the string storing the path info, but this is not easy to
 	#work with directly. Therefore parse this string into a path datastructure.
 	path = parse_path(path_string)
-	
+
 	#we only care about lines and Bezier curves. Create a list of just these two types, and also
 	#wrap each of them in an object that provides some helpful utility methods.
 	components = []
@@ -56,7 +58,7 @@ def get_points_along_path(components, seg_length = 5):
 	'''
 
 	#Iterate over the components in the svg, finding equidistant points along the curve.
-	total_length = sum(c.get_length() for c in components)	
+	total_length = sum(c.get_length() for c in components)
 
 	interped_points = []
 
@@ -118,9 +120,9 @@ def draw_points_to_output_file(left_profile_points, right_profile_points):
 	output_svg.save(left_profile_points, right_profile_points)
 
 def compute_fft_points(points):
-	#We only care about the x values since 
+	#We only care about the x values since
 	#points_x = p.x for p in points
-	
+
 	coords = numpy.array(points).transpose()
 
 	# Position the curve so that the top most point is at the origin (0,0)
@@ -132,10 +134,10 @@ def compute_fft_points(points):
 
 	# Fourier descriptors
 	z_f = numpy.fft.fft(numpy.asarray(z))
-	
+
 	# scale invariance 
 	z_f1 = [m/abs(z_f[1]) for m in z_f]
-	
+
 	return z_f1
 
 def save_fft_for_all_svgs(dir):
@@ -163,21 +165,61 @@ def save_fft_for_all_svgs(dir):
 
 				fft_data[filename] = data
 
-	pickle_string = jsonpickle.encode(fft_data)
-	pickle_file = open("fft_data.json", "w") # write mode
-	pickle_file.write(pickle_string)
-	pickle_file.close()
+	#pickle_string = jsonpickle.encode(fft_data)
+	#with open("fft_data.json", "w") as pickle_file:
+	#	pickle_file.write(pickle_string)
 
-def check_one_svg(to_check):
-	'''Compares one svg to all the other svgs in the directory. Prints out match scores.'''
+	pickle.dump(fft_data,  open("fft_data.json", "wb"))
+
+def check_one_svg(target_name, profile_side="right"):
+	'''Compares one svg to all the other svgs in the directory. Prints out match scores.
+	   I tried to base this as much as possible on what was done in the old crane script.
+	'''
+	print "Comparing " + target_name
+
+	profile_side += "_fft"
+
+	# with open("fft_data.json", "r") as pickle_file:
+	# 	all_data_string = pickle_file.read()
+	# 	all_data = jsonpickle.decode(all_data_string)
+	all_data = pickle.load( open( "fft_data.json", "rb" ) )
+
+	#Find the one we are comparing against.
+	target_obj = all_data[target_name]
+
+	target_descriptors = numpy.asarray(target_obj[profile_side])
+	phase = numpy.angle(target_descriptors)
+	target_len = len(target_obj[profile_side])
+
+	fd_dist = {} #store the different in magnitudes
+	phase_dist = {} #store the difference in phases
+
+	for shape_name, shape_data in all_data.items():
+		# gets euclid distance for 2 sets of points. Only consider the first n descriptors where n is the minimum
+		# length of either list
+		descriptors = numpy.asarray(shape_data[profile_side])
+		n = min(descriptors.size, target_descriptors.size)
+
+		fd_dist[shape_name] = (cmath.sqrt(sum((descriptors[:n] - target_descriptors[:n])**2))).real
+		phase_dist[shape_name] = ((cmath.sqrt(sum((numpy.angle(descriptors[:n])-phase[:n])**2))).real)
+
+	#Sort the items by how close they are to the target one.
+	sorted_fd_dist = sorted(fd_dist.items(), key=lambda fd_dist: fd_dist[1])
+
+	print("{:25}\t{:10}\t{:3}".format("name", "FD", "phase"))
+	for i in xrange(len(sorted_fd_dist)):
+		print("{:25}\t{:.6f}\t{:.3f}".format(sorted_fd_dist[i][0], sorted_fd_dist[i][1], phase_dist[sorted_fd_dist[i][0]]))
+
 
 if __name__ == "__main__":
 	if len(sys.argv) != 2:
 		print "USAGE: python pottery_predict.py <svg file>"
 		exit(1)
 
-	save_fft_for_all_svgs(sys.argv[1])
+	# save_fft_for_all_svgs(sys.argv[1])
 
+	print("Done saving")
+	check_one_svg("AS_4A_2012_1.svg");
 	# path = get_path_from_svg(sys.argv[1])
 
 	# points = get_points_along_path(path)
