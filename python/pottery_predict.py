@@ -96,11 +96,11 @@ def split_profile_points(points):
 	bottom_index = points_y.index(max(points_y))
 
 	if (bottom_index < top_index):
-		right_profile = points[top_index:] + points[0:bottom_index+1]
-		left_profile = points[bottom_index:top_index+1]
+		left_profile = points[top_index:] + points[0:bottom_index+1]
+		right_profile = points[bottom_index:top_index+1]
 	elif (top_index < bottom_index):
-		right_profile = points[top_index:bottom_index+1]
-		left_profile = points[bottom_index:] + points[0:top_index+1]
+		left_profile = points[top_index:bottom_index+1]
+		right_profile = points[bottom_index:] + points[0:top_index+1]
 	else:
 		print "TODO: deal with this"
 
@@ -117,7 +117,7 @@ def draw_points_to_output_file(left_profile_points, right_profile_points):
 		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(100, 0, 0, '%')))
 	for p in right_profile_points:
 		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(0, 0, 100, '%')))
-	output_svg.save(left_profile_points, right_profile_points)
+	output_svg.save()
 
 def compute_fft_points(points):
 	#We only care about the x values since
@@ -140,6 +140,45 @@ def compute_fft_points(points):
 
 	return z_f1
 
+def compute_curvature(points):
+	'''
+	:param points:
+	:return: curvatures for each inner point. A smaller radius of curvaturs means that the the section is more bendy.
+			A larger value means that the line section is closer to linear.
+
+			Math for this is based on:
+			http://www.intmath.com/applications-differentiation/8-radius-curvature.php
+	'''
+
+	curvature = [0] * len(points)
+
+	#It is only possible to compute the curvature at a point if there are points
+	#both to the left and to the right of it. Therefore, it is not possible to compute curvature
+	#for the first and last points. Leave these at 0
+	for i in xrange(1, len(points) - 1):
+		a = points[i-1]
+		b = points[i]
+		c = points[i+1]
+
+		try:
+			#find the slope between points a and b
+			m1 = ((a.y - b.y) / (float) (a.x - b.x))
+			#find the slope between points b and c
+			m2 = ((b.y - c.y) / (float) (b.x - c.x))
+
+			#Find the center of the circle passing through these three points.
+			center_x = ((m1 * m2 * (a.x - c.x)) + (m2 * (a.x + b.x)) - (m1 * (b.x + c.x))) / (2.0 * (m2 - m1))
+			center_y = ((-1 / m1) * (center_x - ((a.x + b.x) / 2.0))) + (a.y + b.y) / 2.0
+
+			#Find the distance between the center of the circle and any of the three points. This is the radius
+			#of curvature.
+			curvature[i] = a.distance(Point(center_x, center_y))
+		except ZeroDivisionError:
+			#The curve around this point is linear. This means that the curvature radius is technically infinity,
+			#but I'll instead just use a very large number.
+			curvature[i] = sys.maxint;
+	return curvature
+
 def save_fft_for_all_svgs(dir):
 	fft_data = {}
 
@@ -153,6 +192,8 @@ def save_fft_for_all_svgs(dir):
 				data = {}
 				data["left_fft"] = []
 				data["right_fft"] = []
+				data["left_curvature"] = []
+				data["right_curvature"] = []
 
 				fft_data[filename] = data
 			else:
@@ -160,8 +201,13 @@ def save_fft_for_all_svgs(dir):
 				left_profile_points, right_profile_points = split_profile_points(points)
 
 				data = {}
+				#Calculature the fourier transforms for each profile
 				data["left_fft"] = compute_fft_points(left_profile_points)
 				data["right_fft"] = compute_fft_points(right_profile_points)
+
+				#calculate the curvature along each profile.
+				data["left_curvature"] = compute_curvature(left_profile_points)
+				data["right_curvature"] = compute_curvature(left_profile_points)
 
 				fft_data[filename] = data
 
@@ -177,7 +223,7 @@ def check_one_svg(target_name, profile_side="right"):
 	'''
 	print "Comparing " + target_name
 
-	profile_side += "_fft"
+	profile_side += "_curvature"
 
 	# with open("fft_data.json", "r") as pickle_file:
 	# 	all_data_string = pickle_file.read()
@@ -216,16 +262,11 @@ if __name__ == "__main__":
 		print "USAGE: python pottery_predict.py <svg file>"
 		exit(1)
 
-	# save_fft_for_all_svgs(sys.argv[1])
+	#save_fft_for_all_svgs(sys.argv[1])
 
-	print("Done saving")
-	check_one_svg("AS_4A_2012_1.svg");
-	# path = get_path_from_svg(sys.argv[1])
+	check_one_svg("AS_15B_2012_1.svg");
 
-	# points = get_points_along_path(path)
-	# left_profile_points, right_profile_points = split_profile_points(points)
-
-	# l = compute_fft_points(left_profile_points)
-	# r = compute_fft_points(right_profile_points)
-
-	# draw_points_to_output_file(l, r)
+	#path = get_path_from_svg(sys.argv[1] + "AS_15B_2012_1.svg")
+	#points = get_points_along_path(path)
+	#left_profile_points, right_profile_points = split_profile_points(points)
+	#draw_points_to_output_file(left_profile_points, right_profile_points)
