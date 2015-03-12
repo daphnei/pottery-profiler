@@ -264,9 +264,9 @@ if __name__ == "__main__":
 
 	#save_fft_for_all_svgs(sys.argv[1])
 
-	check_one_svg("AS_15B_2012_1.svg");
+	check_one_svg(sys.argv[1]);
 
-	#path = get_path_from_svg(sys.argv[1] + "AS_15B_2012_1.svg")
-	#points = get_points_along_path(path)
-	#left_profile_points, right_profile_points = split_profile_points(points)
-	#draw_points_to_output_file(left_profile_points, right_profile_points)
+	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/" + sys.argv[1])
+	points = get_points_along_path(path)
+	left_profile_points, right_profile_points = split_profile_points(points)
+	draw_points_to_output_file(left_profile_points, right_profile_points)
