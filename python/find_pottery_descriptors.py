@@ -162,6 +162,8 @@ def compute_curvature(points):
 			m1 = ((a.y - b.y) / (float) (a.x - b.x))
 			#find the slope between points b and c
 			m2 = ((b.y - c.y) / (float) (b.x - c.x))
+			#find the slope between points a and c
+			m3 = ((a.y - c.y) / (float) (a.x - c.x))
 
 			#Find the center of the circle passing through these three points.
 			center_x = ((m1 * m2 * (a.x - c.x)) + (m2 * (a.x + b.x)) - (m1 * (b.x + c.x))) / (2.0 * (m2 - m1))
@@ -170,6 +172,10 @@ def compute_curvature(points):
 			#Find the distance between the center of the circle and any of the three points. This is the radius
 			#of curvature.
 			curvature[i] = a.distance(Point(center_x, center_y))
+
+			#Curvature should also encode the direction of the curve. The direction can be gotten from the slope
+			#between points a and c
+			curvature[i] *= (1 if m3 >= 0 else -1)
 		except ZeroDivisionError:
 			#The curve around this point is linear. This means that the curvature radius is technically infinity,
 			#but I'll instead just use a very large number.
@@ -221,7 +227,7 @@ if __name__ == "__main__":
 
 	save_fft_for_all_svgs(sys.argv[1])
 
-	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/TestPottery/test_curve_06.svg")
+	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/TestPottery/test_curve_07.svg")
 	points = get_points_along_path(path)
 	left_profile_points, right_profile_points = split_profile_points(points)
 	draw_points_to_output_file(left_profile_points, right_profile_points)
