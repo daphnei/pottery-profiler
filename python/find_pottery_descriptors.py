@@ -10,6 +10,7 @@ from svg.path import Path, Line, Arc, CubicBezier, QuadraticBezier, parse_path
 from settings import *
 from curve_components import *
 
+
 def get_path_from_svg(svg_file):
 	'''Given a file path, reads in the SVG at that path.'''
 
@@ -21,7 +22,7 @@ def get_path_from_svg(svg_file):
 		print "Unable to parse the file. Are you sure it is an SVG?"
 		exit(1)
 
-	#Find all paths in the SVG
+	# Find all paths in the SVG
 	all_paths = tree.findall("{*}path")
 
 	if len(all_paths) == 0:
@@ -48,13 +49,14 @@ def get_path_from_svg(svg_file):
 
 	return components
 
+
 def get_points_along_path(components):
 	''' Inputs are
 		components list of components forming the path
 		seg_length: The desired distance between points along the curve
 	'''
 
-	#Iterate over the components in the svg, finding equidistant points along the curve.
+	# Iterate over the components in the svg, finding equidistant points along the curve.
 	total_length = sum(c.get_length() for c in components)
 
 	interped_points = []
@@ -83,41 +85,61 @@ def get_points_along_path(components):
 
 	return interped_points
 
+
 def split_profile_points(points):
 	points_y = list(p.y for p in points)
-
-	#Find the index of the topmost point
+	points_x = list(p.x for p in points)
+	# Find the index of the topmost point
 	top_index = points_y.index(min(points_y))
 
 	#Find the index of the bottommost point.
 	bottom_index = points_y.index(max(points_y))
+	starts_on_left = points_x[0] < points_x[len(points_x) - 1]
 
 	if (bottom_index < top_index):
-		left_profile = points[top_index:] + points[0:bottom_index+1]
-		right_profile = points[bottom_index:top_index+1]
+		pr1 = points[top_index:] + points[0:bottom_index + 1]
+		pr2 = points[bottom_index:top_index + 1]
 	elif (top_index < bottom_index):
-		left_profile = points[top_index:bottom_index+1]
-		right_profile = points[bottom_index:] + points[0:top_index+1]
+		#if starts_on_left:
+			#left = bottom to end + start to top
+			#right = top to bottom
+		#else:
+			#left = top to bottom
+			#right = bottom to end + start to top
+		pr1 = points[top_index:bottom_index + 1]
+		pr2 = points[bottom_index:] + points[0:top_index + 1]
+
 	else:
 		print "TODO: deal with this"
 
 	#Ensure that the 0th element of each profile is the element at the very top
-	left_profile.reverse()
+	pr2.reverse()
+
+	#Figure out which profile is the left and which is the right by checking the
+	#second element of each list.
+	if pr1[1].x < pr2[1].x:
+		left_profile = pr1
+		right_profile = pr2
+	else:
+		left_profile = pr2
+		right_profile = pr1
 
 	return left_profile, right_profile
 
-def draw_points_to_output_file(left_profile_points, right_profile_points):
+
+def draw_points_to_output_file(left_profile_points, right_profile_points, output_file_name='output.svg'):
 	'''	write an output svg with a circle marker at each chosen point position '''
 
-	output_svg = svgwrite.Drawing('output.svg')
+	output_svg = svgwrite.Drawing(output_file_name)
 	for p in left_profile_points:
 		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(100, 0, 0, '%')))
 	for p in right_profile_points:
 		output_svg.add(output_svg.circle(center=(p.x, p.y), r=0.7, fill=svgwrite.rgb(0, 0, 100, '%')))
 	output_svg.save()
 
+
 def compute_fft_points(points):
-	#We only care about the x values since
+	# We only care about the x values since
 	#points_x = p.x for p in points
 
 	coords = numpy.array(points).transpose()
@@ -127,15 +149,16 @@ def compute_fft_points(points):
 	y = list(p.y - coords[0].y for p in coords)
 
 	# z = x + jy
-	z = [complex(x[i],y[i]) for i in range(len(x))]
+	z = [complex(x[i], y[i]) for i in range(len(x))]
 
 	# Fourier descriptors
 	z_f = numpy.fft.fft(numpy.asarray(z))
 
 	# scale invariance 
-	z_f1 = [m/abs(z_f[1]) for m in z_f]
+	z_f1 = [m / abs(z_f[1]) for m in z_f]
 
 	return z_f1
+
 
 def compute_curvature(points):
 	'''
@@ -149,21 +172,21 @@ def compute_curvature(points):
 
 	curvature = [0] * len(points)
 
-	#It is only possible to compute the curvature at a point if there are points
+	# It is only possible to compute the curvature at a point if there are points
 	#both to the left and to the right of it. Therefore, it is not possible to compute curvature
 	#for the first and last points. Leave these at 0
 	for i in xrange(1, len(points) - 1):
-		a = points[i-1]
+		a = points[i - 1]
 		b = points[i]
-		c = points[i+1]
+		c = points[i + 1]
 
 		try:
 			#find the slope between points a and b
-			m1 = ((a.y - b.y) / (float) (a.x - b.x))
+			m1 = ((a.y - b.y) / (float)(a.x - b.x))
 			#find the slope between points b and c
-			m2 = ((b.y - c.y) / (float) (b.x - c.x))
+			m2 = ((b.y - c.y) / (float)(b.x - c.x))
 			#find the slope between points a and c
-			m3 = ((a.y - c.y) / (float) (a.x - c.x))
+			m3 = ((a.y - c.y) / (float)(a.x - c.x))
 
 			#Find the center of the circle passing through these three points.
 			center_x = ((m1 * m2 * (a.x - c.x)) + (m2 * (a.x + b.x)) - (m1 * (b.x + c.x))) / (2.0 * (m2 - m1))
@@ -177,10 +200,10 @@ def compute_curvature(points):
 			#between points a and c
 			curvature[i] *= (1 if m3 >= 0 else -1)
 		except ZeroDivisionError:
-			#The curve around this point is linear. This means that the curvature radius is technically infinity,
-			#but I'll instead just use a very large number.
-			curvature[i] = sys.maxint;
+			#The curve around this point is linear. This means that the curvature radius is 0,
+			curvature[i] = 0;
 	return curvature
+
 
 def save_fft_for_all_svgs(dir):
 	fft_data = {}
@@ -190,7 +213,7 @@ def save_fft_for_all_svgs(dir):
 		if filename.endswith(".svg"):
 			path = get_path_from_svg(dir + filename)
 
-			#If the svg didn't contain any path, then skip doing any calculation on it.
+			# If the svg didn't contain any path, then skip doing any calculation on it.
 			if path == []:
 				data = {}
 				data[LEFT_FFT_KEY] = []
@@ -203,6 +226,8 @@ def save_fft_for_all_svgs(dir):
 				points = get_points_along_path(path)
 				left_profile_points, right_profile_points = split_profile_points(points)
 
+				draw_points_to_output_file(left_profile_points, right_profile_points, "out/output_" + filename);
+
 				data = {}
 				#Calculature the fourier transforms for each profile
 				data[LEFT_FFT_KEY] = compute_fft_points(left_profile_points)
@@ -210,15 +235,16 @@ def save_fft_for_all_svgs(dir):
 
 				#calculate the curvature along each profile.
 				data[LEFT_CURVATURE_KEY] = compute_curvature(left_profile_points)
-				data[RIGHT_CURVATURE_KEY] = compute_curvature(left_profile_points)
+				data[RIGHT_CURVATURE_KEY] = compute_curvature(right_profile_points)
 
 				fft_data[filename] = data
 
-	#pickle_string = jsonpickle.encode(fft_data)
+	# pickle_string = jsonpickle.encode(fft_data)
 	#with open("fft_data.json", "w") as pickle_file:
 	#	pickle_file.write(pickle_string)
 
-	pickle.dump(fft_data,  open(DESC_OUTPUT_FILE, "wb"))
+	pickle.dump(fft_data, open(DESC_OUTPUT_FILE, "wb"))
+
 
 if __name__ == "__main__":
 	if len(sys.argv) != 2:
@@ -227,7 +253,7 @@ if __name__ == "__main__":
 
 	save_fft_for_all_svgs(sys.argv[1])
 
-	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/TestPottery/test_curve_07.svg")
+	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/TestPottery/test_curve_03.svg")
 	points = get_points_along_path(path)
 	left_profile_points, right_profile_points = split_profile_points(points)
 	draw_points_to_output_file(left_profile_points, right_profile_points)
