@@ -5,6 +5,7 @@ import numpy
 import svgwrite
 import os
 import pickle
+import math
 
 from svg.path import Path, Line, Arc, CubicBezier, QuadraticBezier, parse_path
 from settings import *
@@ -61,6 +62,11 @@ def get_points_along_path(components):
 
 	interped_points = []
 
+	#Find the component that contains that contains the height y value, and start processing
+	#that component first. doing thisonly helps to ensure that a point is generated at the topmost
+	#location
+	#SCRAP THIS FOR NOW
+
 	#One path consists of multiple components. These components can either be Bezier curves
 	#or straight lines. We want to choose a point every "seg_length" units along the entire
 	#path, which means we can't necessarily start the points at the very beginning of each
@@ -100,12 +106,6 @@ def split_profile_points(points):
 		pr1 = points[top_index:] + points[0:bottom_index + 1]
 		pr2 = points[bottom_index:top_index + 1]
 	elif (top_index < bottom_index):
-		#if starts_on_left:
-			#left = bottom to end + start to top
-			#right = top to bottom
-		#else:
-			#left = top to bottom
-			#right = bottom to end + start to top
 		pr1 = points[top_index:bottom_index + 1]
 		pr2 = points[bottom_index:] + points[0:top_index + 1]
 
@@ -159,6 +159,100 @@ def compute_fft_points(points):
 
 	return z_f1
 
+
+def dfourier(x,T):
+	l = 2 * math.pi/T;
+	t = len(x);
+	f = numpy.fft.fft(x);
+	a1 = range(0, int(numpy.fix((t-1)/2)+1))
+	a2 = range( -int(numpy.fix(t/2)), -1 + 1)
+	a = numpy.concatenate((a1, a2), 0)
+	b = numpy.array([0j] * t)
+	for k in xrange (0,t):
+		b[k] = (1j*l) * (f[k] * a[k])
+
+	d = numpy.real(numpy.fft.ifft(b))
+	return d
+
+def computeFirstDerivative(x):
+	# This function should calculate the first derivative of a function x using
+	# Fourier transform.
+	# x doesn't has to be periodic.
+
+	t = len(x)
+	tt = numpy.array(list(range(1, t+1)))
+
+	if x[len(x)-1] == x[0]:
+		mean_change = numpy.zeros([1, t])
+		dp = numpy.zeros([1, t])
+		p = dp
+	else:
+		q = (x[1] - x[0]) - (x[len(x)-1] - x[len(x)-2])
+		a = float(q) / (2 * (1 - t))
+		b = (x[0]-x[len(x)-1]) / float(1-t) - a * (t + 1)
+		c1 = x[0]-a-b
+		c2 = x[len(x)-1] - a * t * t - b * t
+		c = (c1 + c2) / 2.0
+		p = a * tt * tt + b * tt + c
+		mean_change = p
+		dp = 2 * a * tt + b
+
+	X = x - mean_change
+	tt = int(numpy.fix(t/2))
+	XX = numpy.concatenate((X[tt : len(X) - 2], X, X[1:tt]), 0)
+	DXX = dfourier(XX, len(XX))
+	DX = numpy.array(DXX[numpy.fix((t+1)/2) : numpy.fix((t+1)/2) + len(X)])
+	d1 = dfourier(X[0:len(X)-1],t-1)
+	d2 = dfourier(X[1:],t-1)
+	DX = numpy.concatenate(([d1[0]], d2), 0)
+	dx = DX + dp
+
+	return dx
+
+def compute_tangent(points):
+	x = list(p.x for p in points)
+	y = list(p.y for p in points)
+
+	x= x - numpy.mean(x)
+	y= y - numpy.mean(y)
+
+	X = numpy.array(x)
+	Y = numpy.array(y)
+
+	t1 = numpy.angle( x[0] + (y[0] * 1j), False)
+	M = numpy.array([[numpy.cos(t1), numpy.sin(t1)], [-numpy.sin(t1), numpy.cos(t1)]]);
+	for k in xrange(len(x)):
+		Q = numpy.dot(M, numpy.array([[x[k]], [y[k]]]))
+		X[k] = Q[0]
+		Y[k] = Q[1]
+
+
+	dx = computeFirstDerivative(X);
+	dy = computeFirstDerivative(Y);
+
+	d = numpy.divide(dy, dx)
+	teta = list(math.atan(x) for x in d)
+
+	I = numpy.multiply( teta[:len(teta)-1], teta[1:len(teta)] )
+	I = numpy.where(I < -1.2)[0]
+	if len(I) > 0:
+		k = len(I) - 1
+		while k >= 0:
+			II=I[k]+1;
+			if teta[II] < 0:
+				teta[II:] = list((teta[x] + math.pi) for x in range(II, len(teta)))
+			else:
+				teta[II:] = list((teta[x] - math.pi) for x in range(II, len(teta)))
+
+			k -= 1
+
+	circle_step = (2 * math.pi) / len(x)
+	circle = (math.pi / 2) + numpy.arange( 0, (2 * math.pi) * (1 - 1.0/len(x)) + 0.001, circle_step)
+	teta = teta - circle
+	if numpy.mean(teta)< -math.pi/2:
+		teta = teta + math.pi;
+
+	return teta
 
 def compute_curvature(points):
 	'''
@@ -220,6 +314,8 @@ def save_fft_for_all_svgs(dir):
 				data[RIGHT_FFT_KEY] = []
 				data[LEFT_CURVATURE_KEY] = []
 				data[RIGHT_CURVATURE_KEY] = []
+				data[LEFT_TANGENT_KEY] = []
+				data[RIGHT_TANGENT_KEY] = []
 
 				fft_data[filename] = data
 			else:
@@ -237,11 +333,15 @@ def save_fft_for_all_svgs(dir):
 				data[LEFT_CURVATURE_KEY] = compute_curvature(left_profile_points)
 				data[RIGHT_CURVATURE_KEY] = compute_curvature(right_profile_points)
 
-				fft_data[filename] = data
+				#calculate the direction of the tangent to the curbe along each profile.
+				data[LEFT_TANGENT_KEY] = compute_tangent(left_profile_points)
+				data[RIGHT_TANGENT_KEY] = compute_tangent(right_profile_points)
 
-	# pickle_string = jsonpickle.encode(fft_data)
-	#with open("fft_data.json", "w") as pickle_file:
-	#	pickle_file.write(pickle_string)
+				#also keep trick of the point location.
+				data[X_KEY] = list(p.x for p in points)
+				data[Y_KEY] = list(p.y for p in points)
+
+				fft_data[filename] = data
 
 	pickle.dump(fft_data, open(DESC_OUTPUT_FILE, "wb"))
 
@@ -253,9 +353,10 @@ if __name__ == "__main__":
 
 	save_fft_for_all_svgs(sys.argv[1])
 
-	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/TestPottery/test_curve_03.svg")
-	points = get_points_along_path(path)
-	left_profile_points, right_profile_points = split_profile_points(points)
-	draw_points_to_output_file(left_profile_points, right_profile_points)
+	# path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_138A_2012_13.svg")
+	# points = get_points_along_path(path)
+	# left_profile_points, right_profile_points = split_profile_points(points)
+	# compute_tangent(left_profile_points)
+	# draw_points_to_output_file(left_profile_points, right_profile_points)
 
 	print "The pottery descriptors have been written to the pickle: " + DESC_OUTPUT_FILE
