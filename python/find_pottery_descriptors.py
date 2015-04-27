@@ -20,7 +20,7 @@ def get_path_from_svg(svg_file):
 	try:
 		tree = etree.parse(svg_file)
 	except:
-		print "Unable to parse the file. Are you sure it is an SVG?"
+		print "Unable to parse the file. Are you sure it exists, and it is an SVG?"
 		exit(1)
 
 	# Find all paths in the SVG
@@ -35,7 +35,7 @@ def get_path_from_svg(svg_file):
 	path_node = all_paths[0]
 	path_string = path_node.get("d")
 
-	#The path node in the SVG contains the string storing the path info, but this is not easy to
+	# The path node in the SVG contains the string storing the path info, but this is not easy to
 	#work with directly. Therefore parse this string into a path datastructure.
 	path = parse_path(path_string)
 
@@ -62,7 +62,7 @@ def get_points_along_path(components):
 
 	interped_points = []
 
-	#Find the component that contains that contains the height y value, and start processing
+	# Find the component that contains that contains the height y value, and start processing
 	#that component first. doing thisonly helps to ensure that a point is generated at the topmost
 	#location
 	#SCRAP THIS FOR NOW
@@ -98,7 +98,7 @@ def split_profile_points(points):
 	# Find the index of the topmost point
 	top_index = points_y.index(min(points_y))
 
-	#Find the index of the bottommost point.
+	# Find the index of the bottommost point.
 	bottom_index = points_y.index(max(points_y))
 	starts_on_left = points_x[0] < points_x[len(points_x) - 1]
 
@@ -110,7 +110,7 @@ def split_profile_points(points):
 		pr2 = points[bottom_index:] + points[0:top_index + 1]
 
 	else:
-		print "TODO: deal with this"
+		print "TODO: deal with paththis"
 
 	#Ensure that the 0th element of each profile is the element at the very top
 	pr2.reverse()
@@ -140,7 +140,7 @@ def draw_points_to_output_file(left_profile_points, right_profile_points, output
 
 def compute_fft_points(points):
 	# We only care about the x values since
-	#points_x = p.x for p in points
+	# points_x = p.x for p in points
 
 	coords = numpy.array(points).transpose()
 
@@ -160,19 +160,20 @@ def compute_fft_points(points):
 	return z_f1
 
 
-def dfourier(x,T):
-	l = 2 * math.pi/T;
+def dfourier(x, T):
+	l = 2 * math.pi / T;
 	t = len(x);
 	f = numpy.fft.fft(x);
-	a1 = range(0, int(numpy.fix((t-1)/2)+1))
-	a2 = range( -int(numpy.fix(t/2)), -1 + 1)
+	a1 = range(0, int(numpy.fix((t - 1) / 2) + 1))
+	a2 = range(-int(numpy.fix(t / 2)), -1 + 1)
 	a = numpy.concatenate((a1, a2), 0)
 	b = numpy.array([0j] * t)
-	for k in xrange (0,t):
-		b[k] = (1j*l) * (f[k] * a[k])
+	for k in xrange(0, t):
+		b[k] = (1j * l) * (f[k] * a[k])
 
 	d = numpy.real(numpy.fft.ifft(b))
 	return d
+
 
 def computeFirstDerivative(x):
 	# This function should calculate the first derivative of a function x using
@@ -180,52 +181,52 @@ def computeFirstDerivative(x):
 	# x doesn't has to be periodic.
 
 	t = len(x)
-	tt = numpy.array(list(range(1, t+1)))
+	tt = numpy.array(list(range(1, t + 1)))
 
-	if x[len(x)-1] == x[0]:
+	if x[len(x) - 1] == x[0]:
 		mean_change = numpy.zeros([1, t])
 		dp = numpy.zeros([1, t])
 		p = dp
 	else:
-		q = (x[1] - x[0]) - (x[len(x)-1] - x[len(x)-2])
+		q = (x[1] - x[0]) - (x[len(x) - 1] - x[len(x) - 2])
 		a = float(q) / (2 * (1 - t))
-		b = (x[0]-x[len(x)-1]) / float(1-t) - a * (t + 1)
-		c1 = x[0]-a-b
-		c2 = x[len(x)-1] - a * t * t - b * t
+		b = (x[0] - x[len(x) - 1]) / float(1 - t) - a * (t + 1)
+		c1 = x[0] - a - b
+		c2 = x[len(x) - 1] - a * t * t - b * t
 		c = (c1 + c2) / 2.0
 		p = a * tt * tt + b * tt + c
 		mean_change = p
 		dp = 2 * a * tt + b
 
 	X = x - mean_change
-	tt = int(numpy.fix(t/2))
-	XX = numpy.concatenate((X[tt : len(X) - 2], X, X[1:tt]), 0)
+	tt = int(numpy.fix(t / 2))
+	XX = numpy.concatenate((X[tt: len(X) - 2], X, X[1:tt]), 0)
 	DXX = dfourier(XX, len(XX))
-	DX = numpy.array(DXX[numpy.fix((t+1)/2) : numpy.fix((t+1)/2) + len(X)])
-	d1 = dfourier(X[0:len(X)-1],t-1)
-	d2 = dfourier(X[1:],t-1)
+	DX = numpy.array(DXX[numpy.fix((t + 1) / 2): numpy.fix((t + 1) / 2) + len(X)])
+	d1 = dfourier(X[0:len(X) - 1], t - 1)
+	d2 = dfourier(X[1:], t - 1)
 	DX = numpy.concatenate(([d1[0]], d2), 0)
 	dx = DX + dp
 
 	return dx
 
+
 def compute_tangent(points):
 	x = list(p.x for p in points)
 	y = list(p.y for p in points)
 
-	x= x - numpy.mean(x)
-	y= y - numpy.mean(y)
+	x = x - numpy.mean(x)
+	y = y - numpy.mean(y)
 
 	X = numpy.array(x)
 	Y = numpy.array(y)
 
-	t1 = numpy.angle( x[0] + (y[0] * 1j), False)
+	t1 = numpy.angle(x[0] + (y[0] * 1j), False)
 	M = numpy.array([[numpy.cos(t1), numpy.sin(t1)], [-numpy.sin(t1), numpy.cos(t1)]]);
 	for k in xrange(len(x)):
 		Q = numpy.dot(M, numpy.array([[x[k]], [y[k]]]))
 		X[k] = Q[0]
 		Y[k] = Q[1]
-
 
 	dx = computeFirstDerivative(X);
 	dy = computeFirstDerivative(Y);
@@ -233,12 +234,12 @@ def compute_tangent(points):
 	d = numpy.divide(dy, dx)
 	teta = list(math.atan(x) for x in d)
 
-	I = numpy.multiply( teta[:len(teta)-1], teta[1:len(teta)] )
+	I = numpy.multiply(teta[:len(teta) - 1], teta[1:len(teta)])
 	I = numpy.where(I < -1.2)[0]
 	if len(I) > 0:
 		k = len(I) - 1
 		while k >= 0:
-			II=I[k]+1;
+			II = I[k] + 1;
 			if teta[II] < 0:
 				teta[II:] = list((teta[x] + math.pi) for x in range(II, len(teta)))
 			else:
@@ -247,12 +248,89 @@ def compute_tangent(points):
 			k -= 1
 
 	circle_step = (2 * math.pi) / len(x)
-	circle = (math.pi / 2) + numpy.arange( 0, (2 * math.pi) * (1 - 1.0/len(x)) + 0.001, circle_step)
+	circle = (math.pi / 2) + numpy.arange(0, (2 * math.pi) * (1 - 1.0 / len(x)) + 0.001, circle_step)
 	teta = teta - circle
-	if numpy.mean(teta)< -math.pi/2:
+	if numpy.mean(teta) < -math.pi / 2:
 		teta = teta + math.pi;
 
 	return teta
+
+
+def compute_tangent_alt(points):
+	tangent = [0] * len(points)
+
+	for i in xrange(1, len(points) - 1):
+		p1 = points[i - 1]
+		p2 = points[i + 1]
+
+		if p2.x - p1.x == 0:
+			slope = sys.maxint
+		else:
+			slope = (p2.y - p1.y) / float(p2.x - p1.x)
+
+		tangent[i] = slope
+
+	return tangent
+
+def compute_thickness(target_profile, other_profile, tangents_target, tangents_other):
+	thicknesses = [0] * len(target_profile)
+
+	output_svg = svgwrite.Drawing("temp.svg")
+
+	for i in xrange(1, len(target_profile) - 1):
+		try:
+			#Find the intersection between the line normal to the tangent, and each of the line segments making up the
+			#opposite profile.
+
+			p1 = target_profile[i-1]
+			p2 = target_profile[i+1]
+			p_on_line = Point((p1.x + p2.x)/2.0, (p1.y + p2.y) / 2.0 )
+
+			#The slope and y-intercept of the line normal to the tangent.
+			s1 = - 1.0 / tangents_target[i]
+			b1 = target_profile[i].y - s1 * target_profile[i].x
+
+			# TO REMOVE
+			s0 = tangents_target[i]
+			b0 = target_profile[i].y - s0 * target_profile[i].x
+
+			min_dist = sys.maxint
+			best_point = None
+
+			#TODO: Do something smarter here. If the database grows too large, this will have crappy runtime.
+			#Maybe restrict to along look at points within a window?
+			for j in xrange(1, len(other_profile)-1):
+				p1 = other_profile[j-1]
+				p2 = other_profile[j+1]
+				p_on_line = Point((p1.x + p2.x)/2.0, (p1.y + p2.y) / 2.0 )
+
+				s2 = tangents_other[j]
+				b2 = p_on_line.y - s2 * p_on_line.x
+
+				#determine the x-y position of the intercept between the two lines
+				x = (b2 - b1) / (s1 - s2)
+				y = s1 * x + b1
+
+				#Is this point closer than any others found previously?
+				intercept = Point(x, y)
+				distance = intercept.distance(target_profile[i])
+				if distance < min_dist and intercept.is_between(p1, p2):
+					min_dist = distance
+					best_point = other_profile[j]
+
+			thicknesses[i] = min_dist
+
+
+			#output_svg.add(output_svg.line((0, b0), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(80, 0, 160, '%')))
+			#output_svg.add(output_svg.line((0, b1), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(10, 10, 16, '%')))
+			if (best_point != None):
+				output_svg.add(output_svg.line((best_point.x, best_point.y), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(10, 10, 16, '%')))
+		except ZeroDivisionError:
+			thicknesses[i] = sys.maxint
+
+	output_svg.save()
+	return thicknesses
+
 
 def compute_curvature(points):
 	'''
@@ -267,34 +345,36 @@ def compute_curvature(points):
 	curvature = [0] * len(points)
 
 	# It is only possible to compute the curvature at a point if there are points
-	#both to the left and to the right of it. Therefore, it is not possible to compute curvature
-	#for the first and last points. Leave these at 0
+	# both to the left and to the right of it. Therefore, it is not possible to compute curvature
+	# for the first and last points. Leave these at 0
 	for i in xrange(1, len(points) - 1):
 		a = points[i - 1]
 		b = points[i]
 		c = points[i + 1]
 
 		try:
-			#find the slope between points a and b
+			# find the slope between points a and b
 			m1 = ((a.y - b.y) / (float)(a.x - b.x))
-			#find the slope between points b and c
+			# find the slope between points b and c
 			m2 = ((b.y - c.y) / (float)(b.x - c.x))
-			#find the slope between points a and c
+			# find the slope between points a and c
 			m3 = ((a.y - c.y) / (float)(a.x - c.x))
 
-			#Find the center of the circle passing through these three points.
+			# Find the center of the circle passing through these three points.
 			center_x = ((m1 * m2 * (a.x - c.x)) + (m2 * (a.x + b.x)) - (m1 * (b.x + c.x))) / (2.0 * (m2 - m1))
 			center_y = ((-1 / m1) * (center_x - ((a.x + b.x) / 2.0))) + (a.y + b.y) / 2.0
 
-			#Find the distance between the center of the circle and any of the three points. This is the radius
-			#of curvature.
+			# Find the distance between the center of the circle and any of the three points. This is the radius
+			# of curvature.
 			curvature[i] = a.distance(Point(center_x, center_y))
 
-			#Curvature should also encode the direction of the curve. The direction can be gotten from the slope
-			#between points a and c
-			curvature[i] *= (1 if m3 >= 0 else -1)
+		# Curvature should also encode the direction of the curve. The direction can be gotten from the slope
+		# between points a and c.
+		# Now that we also have a descriptor for the slope of the tangent, this becomes less important.
+		# This could be commented.
+		# curvature[i] *= (1 if m3 >= 0 else -1)
 		except ZeroDivisionError:
-			#The curve around this point is linear. This means that the curvature radius is 0,
+			# The curve around this point is linear. This means that the curvature radius is 0,
 			curvature[i] = 0;
 	return curvature
 
@@ -307,31 +387,38 @@ def save_fft_for_all_svgs(dir):
 		if filename.endswith(".svg"):
 			path = get_path_from_svg(dir + filename)
 
-			# If the svg didn't contain any path, then skip doing any calculation on it.
-			if path == []:
-				data = {}
-				data[LEFT_FFT_KEY] = []
-				data[RIGHT_FFT_KEY] = []
-				data[LEFT_CURVATURE_KEY] = []
-				data[RIGHT_CURVATURE_KEY] = []
-				data[LEFT_TANGENT_KEY] = []
-				data[RIGHT_TANGENT_KEY] = []
+			data = {}
+			data[LEFT_FFT_KEY] = []
+			data[RIGHT_FFT_KEY] = []
+			data[LEFT_CURVATURE_KEY] = []
+			data[RIGHT_CURVATURE_KEY] = []
+			data[LEFT_TANGENT_KEY] = []
+			data[RIGHT_TANGENT_KEY] = []
+			data[LEFT_TANGENT_ALT_KEY] = []
+			data[RIGHT_TANGENT_ALT_KEY] = []
+			data[THICKNESS_KEY] = []
 
-				fft_data[filename] = data
-			else:
+			fft_data[filename] = data
+
+			# If the svg didn't contain any path, then skip doing any calculation on it.
+			if path != []:
 				points = get_points_along_path(path)
 				left_profile_points, right_profile_points = split_profile_points(points)
 
 				draw_points_to_output_file(left_profile_points, right_profile_points, "out/output_" + filename);
 
 				data = {}
-				#Calculature the fourier transforms for each profile
+
+				# Calculature the fourier transforms for each profile
 				data[LEFT_FFT_KEY] = compute_fft_points(left_profile_points)
 				data[RIGHT_FFT_KEY] = compute_fft_points(right_profile_points)
 
 				#calculate the curvature along each profile.
 				data[LEFT_CURVATURE_KEY] = compute_curvature(left_profile_points)
 				data[RIGHT_CURVATURE_KEY] = compute_curvature(right_profile_points)
+
+				data[LEFT_TANGENT_ALT_KEY] = compute_tangent_alt(left_profile_points)
+				data[RIGHT_TANGENT_ALT_KEY] = compute_tangent_alt(right_profile_points)
 
 				#calculate the direction of the tangent to the curbe along each profile.
 				data[LEFT_TANGENT_KEY] = compute_tangent(left_profile_points)
@@ -341,7 +428,8 @@ def save_fft_for_all_svgs(dir):
 				data[X_KEY] = list(p.x for p in points)
 				data[Y_KEY] = list(p.y for p in points)
 
-				fft_data[filename] = data
+				data[THICKNESS_KEY] = compute_thickness(left_profile_points, right_profile_points, \
+											data[LEFT_TANGENT_ALT_KEY], data[RIGHT_TANGENT_ALT_KEY])
 
 	pickle.dump(fft_data, open(DESC_OUTPUT_FILE, "wb"))
 
@@ -351,12 +439,17 @@ if __name__ == "__main__":
 		print "USAGE: python find_pottery_descriptors.py <svg file>"
 		exit(1)
 
-	save_fft_for_all_svgs(sys.argv[1])
+	#save_fft_for_all_svgs(sys.argv[1])
 
-	# path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_138A_2012_13.svg")
-	# points = get_points_along_path(path)
-	# left_profile_points, right_profile_points = split_profile_points(points)
-	# compute_tangent(left_profile_points)
-	# draw_points_to_output_file(left_profile_points, right_profile_points)
+	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_133_2012_9.svg")
+	points = get_points_along_path(path)
+	left_profile_points, right_profile_points = split_profile_points(points)
+	draw_points_to_output_file(left_profile_points, right_profile_points)
+
+	left_tan = compute_tangent_alt(left_profile_points)
+	right_tan = compute_tangent_alt(right_profile_points)
+	thickness = compute_thickness(left_profile_points, right_profile_points, left_tan, right_tan)
+	print thickness
+	print right_tan
 
 	print "The pottery descriptors have been written to the pickle: " + DESC_OUTPUT_FILE
