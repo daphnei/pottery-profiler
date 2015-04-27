@@ -371,8 +371,9 @@ def compute_curvature(points):
 		# Curvature should also encode the direction of the curve. The direction can be gotten from the slope
 		# between points a and c.
 		# Now that we also have a descriptor for the slope of the tangent, this becomes less important.
-		# This could be commented.
+		# It can be commented out.
 		# curvature[i] *= (1 if m3 >= 0 else -1)
+
 		except ZeroDivisionError:
 			# The curve around this point is linear. This means that the curvature radius is 0,
 			curvature[i] = 0;
@@ -388,15 +389,15 @@ def save_fft_for_all_svgs(dir):
 			path = get_path_from_svg(dir + filename)
 
 			data = {}
-			data[LEFT_FFT_KEY] = []
-			data[RIGHT_FFT_KEY] = []
-			data[LEFT_CURVATURE_KEY] = []
-			data[RIGHT_CURVATURE_KEY] = []
-			data[LEFT_TANGENT_KEY] = []
-			data[RIGHT_TANGENT_KEY] = []
-			data[LEFT_TANGENT_ALT_KEY] = []
-			data[RIGHT_TANGENT_ALT_KEY] = []
-			data[THICKNESS_KEY] = []
+			data[Metric.LEFT_FFT_KEY] = []
+			data[Metric.RIGHT_FFT_KEY] = []
+			data[Metric.LEFT_CURVATURE_KEY] = []
+			data[Metric.RIGHT_CURVATURE_KEY] = []
+			data[Metric.LEFT_TANGENT_KEY] = []
+			data[Metric.RIGHT_TANGENT_KEY] = []
+			data[Metric.LEFT_TANGENT_ALT_KEY] = []
+			data[Metric.RIGHT_TANGENT_ALT_KEY] = []
+			data[Metric.THICKNESS_KEY] = []
 
 			fft_data[filename] = data
 
@@ -410,26 +411,26 @@ def save_fft_for_all_svgs(dir):
 				data = {}
 
 				# Calculature the fourier transforms for each profile
-				data[LEFT_FFT_KEY] = compute_fft_points(left_profile_points)
-				data[RIGHT_FFT_KEY] = compute_fft_points(right_profile_points)
+				data[Metric.LEFT_FFT_KEY] = compute_fft_points(left_profile_points)
+				data[Metric.LEFT_RIGHT_FFT_KEY] = compute_fft_points(right_profile_points)
 
 				#calculate the curvature along each profile.
-				data[LEFT_CURVATURE_KEY] = compute_curvature(left_profile_points)
-				data[RIGHT_CURVATURE_KEY] = compute_curvature(right_profile_points)
+				data[Metric.LEFT_LEFT_CURVATURE_KEY] = compute_curvature(left_profile_points)
+				data[Metric.LEFT_RIGHT_CURVATURE_KEY] = compute_curvature(right_profile_points)
 
-				data[LEFT_TANGENT_ALT_KEY] = compute_tangent_alt(left_profile_points)
-				data[RIGHT_TANGENT_ALT_KEY] = compute_tangent_alt(right_profile_points)
+				data[Metric.LEFT_LEFT_TANGENT_ALT_KEY] = compute_tangent_alt(left_profile_points)
+				data[Metric.LEFT_RIGHT_TANGENT_ALT_KEY] = compute_tangent_alt(right_profile_points)
 
 				#calculate the direction of the tangent to the curbe along each profile.
-				data[LEFT_TANGENT_KEY] = compute_tangent(left_profile_points)
-				data[RIGHT_TANGENT_KEY] = compute_tangent(right_profile_points)
+				data[Metric.LEFT_LEFT_TANGENT_KEY] = compute_tangent(left_profile_points)
+				data[Metric.LEFT_RIGHT_TANGENT_KEY] = compute_tangent(right_profile_points)
 
 				#also keep trick of the point location.
-				data[X_KEY] = list(p.x for p in points)
-				data[Y_KEY] = list(p.y for p in points)
+				data[Metric.LEFT_X_KEY] = list(p.x for p in points)
+				data[Metric.LEFT_Y_KEY] = list(p.y for p in points)
 
-				data[THICKNESS_KEY] = compute_thickness(left_profile_points, right_profile_points, \
-											data[LEFT_TANGENT_ALT_KEY], data[RIGHT_TANGENT_ALT_KEY])
+				data[Metric.THICKNESS_KEY] = compute_thickness(left_profile_points, right_profile_points, \
+											data[Metric.LEFT_TANGENT_ALT_KEY], data[Metric.RIGHT_TANGENT_ALT_KEY])
 
 	pickle.dump(fft_data, open(DESC_OUTPUT_FILE, "wb"))
 

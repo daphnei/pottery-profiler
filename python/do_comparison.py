@@ -30,14 +30,14 @@ def kmeans_attempt():
 
 
 	#get the max length of any curve descriptors and the max length of any fft descriptors
-	max_length = get_max_desc_length(all_data, RIGHT_FFT_KEY)
+	max_length = get_max_desc_length(all_data, Metric.RIGHT_FFT_KEY)
 
 	names = []
 
 	data_for_kmeans = np.zeros((len(all_data), 3 * max_length))  #Instead should be initing a Numpy array?
 	for i, (shape_name, shape_data), in enumerate(all_data.items()):
-		curve_descs = shape_data[RIGHT_CURVATURE_KEY]
-		fft_descs = shape_data[RIGHT_FFT_KEY]
+		curve_descs = shape_data[Metric.RIGHT_CURVATURE_KEY]
+		fft_descs = shape_data[Metric.RIGHT_FFT_KEY]
 		fft_descs_real = list(x.real for x in fft_descs)
 		fft_descs_imag = list(x.imag for x in fft_descs)
 
@@ -74,8 +74,16 @@ def kmeans_attempt():
 	for label in l:
 		print label
 
-def do_comp_with_all_metrics(target_name, weights=None):
-	print "Comparing: " + target_name
+def do_comp_with_all_metrics(target_name, metrics, weights=None):
+	'''
+	Compares the sherd with the target_name with all the other sherds in the database,
+	using a weighted sum of all of the metrics specified. The results are printed.
+
+	:param target_name: The name of the sherd to compare with all the others.
+	:param metrics: The metric to use when doing the comparison.
+	:param weights: The weight to give each one of the metrics.
+	:return: nothing
+	'''
 
 	all_data = pickle.load( open( "sherd_data.pickle", "rb" ) )
 
@@ -86,11 +94,13 @@ def do_comp_with_all_metrics(target_name, weights=None):
 	dists = {}
 
 	#If no weights were provided, default to equal weights.
-	if weights == None:
-		weights = [1.0 / len(ALL_KEYS)] * len(ALL_KEYS)
+	if weights is None:
+		weights = [1.0 / len(metrics)] * len(metrics)
+	else:
+		assert(len(weights) == len(metrics))
 
-	for metric_index in xrange(len(ALL_KEYS)):
-		metric = ALL_KEYS[metric_index]
+	for metric_index in xrange(len(metrics)):
+		metric = metrics[metric_index]
 
 		target_descriptors = numpy.asarray(target_obj[metric])
 
@@ -102,25 +112,20 @@ def do_comp_with_all_metrics(target_name, weights=None):
 
 			dists[shape_name] += compare(target_descriptors, tomatch_descriptors) * weights[metric_index]
 
-
-
 	#Print out the results.
 	print_comparison_result(dists)
 
 
 
 def do_comp_with_one_metric(target_name, metric, normalize_by_length=False):
-	'''Compares one svg to all the other svgs in the directory. Prints out match scores.
-
-		Inputs
-		target_name: The name of the svg that should be compared with all other entries in the database.
-		metric: Any one of the keys found in settings.py
-		normalize_by_length: whether or not match scores should be divided by the number of datapoints used in the match
-
-
 	'''
-	print "Comparing " + target_name
+		Compares one svg to all the other svgs in the directory. Prints out match scores.
 
+		:param target_name: The name of the svg that should be compared with all other entries in the database.
+		:param metric: Any one of the keys found in settings.py
+		:param normalize_by_length: whether or not match scores should be divided by the number of datapoints used in the match
+	'''
+	
 	all_data = pickle.load( open( "sherd_data.pickle", "rb" ) )
 
 	#Find the one we are comparing against.

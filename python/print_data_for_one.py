@@ -17,15 +17,15 @@ if __name__ == "__main__":
 	all_data = pickle.load(open(DESC_OUTPUT_FILE, "rb" ) )
 	one_data = all_data[sys.argv[1]]
 
-	num_points_left = len(one_data[LEFT_FFT_KEY])
-	num_points_right = len(one_data[RIGHT_FFT_KEY])
+	num_points_left = len(one_data[Metric.LEFT_FFT_KEY])
+	num_points_right = len(one_data[Metric.RIGHT_FFT_KEY])
 	max_either_side = max(num_points_left, num_points_right)
 	min_either_side = min(num_points_left, num_points_right)
 
-	c1 = one_data[LEFT_FFT_KEY]
-	c2 = one_data[RIGHT_FFT_KEY]
-	c3 = one_data[LEFT_CURVATURE_KEY]
-	c4 = one_data[RIGHT_CURVATURE_KEY]
+	c1 = one_data[Metric.LEFT_FFT_KEY]
+	c2 = one_data[Metric.RIGHT_FFT_KEY]
+	c3 = one_data[Metric.LEFT_CURVATURE_KEY]
+	c4 = one_data[Metric.RIGHT_CURVATURE_KEY]
 	print ("Lengths: " + str(len(c1)) + ", " + str(len(c2)) + ", " + str(len(c3)) + ", " + str(len(c4)))
 
 
