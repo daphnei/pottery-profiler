@@ -18,15 +18,17 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import scale
 from scipy.cluster.vq import kmeans, vq
 
+
 def get_max_desc_length(all_data, desc_type):
 	inner_dicts = all_data.values()
 	desc_lists = map(lambda x: x[desc_type], inner_dicts)
 	return max(len(sublist) for sublist in desc_lists)
 
-def kmeans_attempt():
-	#coo_matrix
 
-	all_data = pickle.load( open( "sherd_data.pickle", "rb" ) )
+def kmeans_attempt():
+	# coo_matrix
+
+	all_data = pickle.load(open("sherd_data.pickle", "rb"))
 
 
 	#get the max length of any curve descriptors and the max length of any fft descriptors
@@ -47,10 +49,10 @@ def kmeans_attempt():
 			#Pad the lists up to their maximum length.
 			curve_descs = curve_descs + ((max_length - len(curve_descs)) * [np.mean(curve_descs)])
 			fft_descs_real = fft_descs_real + ((max_length - len(fft_descs)) * [np.mean(fft_descs_real)])
-			fft_descs_imag = fft_descs_imag+ ((max_length - len(fft_descs)) * [np.mean(fft_descs_imag)])
+			fft_descs_imag = fft_descs_imag + ((max_length - len(fft_descs)) * [np.mean(fft_descs_imag)])
 
 			#Append all the lists together.
-			combined_data = np.array(curve_descs + fft_descs_real + fft_descs_imag) #This should be a row of the matrix
+			combined_data = np.array(curve_descs + fft_descs_real + fft_descs_imag)  #This should be a row of the matrix
 
 			# print
 			# print combined_data
@@ -63,7 +65,7 @@ def kmeans_attempt():
 	print ("Starting PCA")
 
 	#Reduce the dimensionality by some amount
-	reduced_data = data_for_kmeans#PCA(n_components=20).fit_transform(data_for_kmeans)
+	reduced_data = data_for_kmeans  #PCA(n_components=20).fit_transform(data_for_kmeans)
 
 	codebook, distortion = kmeans(reduced_data, 4)
 
@@ -73,6 +75,7 @@ def kmeans_attempt():
 	l.sort()
 	for label in l:
 		print label
+
 
 def do_comp_with_all_metrics(target_name, metrics, weights=None):
 	'''
@@ -85,9 +88,9 @@ def do_comp_with_all_metrics(target_name, metrics, weights=None):
 	:return: nothing
 	'''
 
-	all_data = pickle.load( open( "sherd_data.pickle", "rb" ) )
+	all_data = pickle.load(open("a_" + DESC_OUTPUT_FILE, "rb"))
 
-	#Find the one we are comparing against.
+	# Find the one we are comparing against.
 	target_obj = all_data[target_name]
 
 	#for each sherd in the database, store its average distance from the target
@@ -97,15 +100,24 @@ def do_comp_with_all_metrics(target_name, metrics, weights=None):
 	if weights is None:
 		weights = [1.0 / len(metrics)] * len(metrics)
 	else:
-		assert(len(weights) == len(metrics))
+		assert (len(weights) == len(metrics))
+		assert (sum(weights) == 1)
 
 	for metric_index in xrange(len(metrics)):
 		metric = metrics[metric_index]
 
 		target_descriptors = numpy.asarray(target_obj[metric])
 
+		all_values_from_metric = reduce(lambda values, values_so_far: values + values_so_far,
+										(x[metric] for x in all_data.values()), [])
+
+		#Normalize all descriptors to a [0,1] range so that each metric can be weighted equally
+		norm_for_metric = numpy.linalg.norm(all_values_from_metric)
+		target_descriptors /= norm_for_metric
+
 		for shape_name, shape_data in all_data.items():
 			tomatch_descriptors = numpy.asarray(shape_data[metric])
+			tomatch_descriptors /= norm_for_metric
 
 			if shape_name not in dists:
 				dists[shape_name] = 0
@@ -116,7 +128,6 @@ def do_comp_with_all_metrics(target_name, metrics, weights=None):
 	print_comparison_result(dists)
 
 
-
 def do_comp_with_one_metric(target_name, metric, normalize_by_length=False):
 	'''
 		Compares one svg to all the other svgs in the directory. Prints out match scores.
@@ -125,10 +136,10 @@ def do_comp_with_one_metric(target_name, metric, normalize_by_length=False):
 		:param metric: Any one of the keys found in settings.py
 		:param normalize_by_length: whether or not match scores should be divided by the number of datapoints used in the match
 	'''
-	
-	all_data = pickle.load( open( "sherd_data.pickle", "rb" ) )
 
-	#Find the one we are comparing against.
+	all_data = pickle.load(open(DESC_OUTPUT_FILE, "rb"))
+
+	# Find the one we are comparing against.
 	target_obj = all_data[target_name]
 
 	target_descriptors = numpy.asarray(target_obj[metric])
@@ -145,17 +156,28 @@ def do_comp_with_one_metric(target_name, metric, normalize_by_length=False):
 	#Print out the results.
 	print_comparison_result(dists)
 
+
 def print_comparison_result(dists):
-	#Sort the items by how close they are to the target one.
+	# Sort the items by how close they are to the target one.
 	sorted_dists = sorted(dists.items(), key=lambda dists: dists[1])
 
-	print("{:25}\t{:10}".format("name", "matchValue"))
+	print("\t{:25}\t{:10}".format("name", "matchValue"))
 	for i in xrange(len(sorted_dists)):
-		print("{:25}\t{:.6f}".format(sorted_dists[i][0], sorted_dists[i][1]))
+		print("{:4}\t{:25}\t{:.6f}".format(i, sorted_dists[i][0], sorted_dists[i][1]))
 
-def compare(target_descriptors, tomatch_descriptors, normalize_by_length = False):
 
-	#I attempted to do comparisons within a moving window in order to help resolve
+def compare(target_descriptors, tomatch_descriptors, normalize_by_length=False):
+	"""
+	Determines how class the target_descriptors are to the tomatch_descriptors by checking
+	the Euclidean distance between them.
+
+	:param target_descriptors:    A vector of numbers.
+	:param tomatch_descriptors:   An equally-sized vector of numbers..
+	:param normalize_by_length:   Whether or not the similarity measure should be divided by the number of elements in
+								  in the vectors before it is returned.
+	:return: An indicator of how close the two input vectors are to eac other.
+	"""
+	# I attempted to do comparisons within a moving window in order to help resolve
 	#the issue of small phase changes causing completely different matches. However,
 	#setting the window size to 2-5 didn't end up drastically improving comparisons.
 	window_size = 1
@@ -186,13 +208,16 @@ def compare(target_descriptors, tomatch_descriptors, normalize_by_length = False
 
 	return distance
 
+
 if __name__ == "__main__":
 	if len(sys.argv) == 3:
 		print "Comparing " + sys.argv[1] + " using the " + sys.argv[2] + " metric:"
-		do_comp_with_one_metric(sys.argv[1], sys.argv[2]);
+		do_comp_with_one_metric(sys.argv[1], sys.argv[2])
 	elif len(sys.argv) == 2:
 		print "Comparing " + sys.argv[1] + " using all metrics:"
-		do_comp_with_all_metrics(sys.argv[1])
+		do_comp_with_all_metrics(sys.argv[1],
+								 [Metric.RIGHT_FFT_KEY, Metric.RIGHT_CURVATURE_KEY, Metric.RIGHT_TANGENT_ALT_KEY]
+								 )
 	else:
 		print "USAGE python do_comparison.py SVG_NAME [METRIC]"
 

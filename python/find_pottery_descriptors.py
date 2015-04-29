@@ -36,7 +36,7 @@ def get_path_from_svg(svg_file):
 	path_string = path_node.get("d")
 
 	# The path node in the SVG contains the string storing the path info, but this is not easy to
-	#work with directly. Therefore parse this string into a path datastructure.
+	# work with directly. Therefore parse this string into a path datastructure.
 	path = parse_path(path_string)
 
 	#we only care about lines and Bezier curves. Create a list of just these two types, and also
@@ -63,8 +63,7 @@ def get_points_along_path(components):
 	interped_points = []
 
 	# Find the component that contains that contains the height y value, and start processing
-	#that component first. doing thisonly helps to ensure that a point is generated at the topmost
-	#location
+	# that component first. doing this only helps to ensure that the top most curve has a
 	#SCRAP THIS FOR NOW
 
 	#One path consists of multiple components. These components can either be Bezier curves
@@ -112,7 +111,7 @@ def split_profile_points(points):
 	else:
 		print "TODO: deal with paththis"
 
-	#Ensure that the 0th element of each profile is the element at the very top
+	# Ensure that the 0th element of each profile is the element at the very top
 	pr2.reverse()
 
 	#Figure out which profile is the left and which is the right by checking the
@@ -155,7 +154,7 @@ def compute_fft_points(points):
 	z_f = numpy.fft.fft(numpy.asarray(z))
 
 	# scale invariance 
-	z_f1 = [m / abs(z_f[1]) for m in z_f]
+	z_f1 = list([m / abs(z_f[1]) for m in z_f])
 
 	return z_f1
 
@@ -175,7 +174,7 @@ def dfourier(x, T):
 	return d
 
 
-def computeFirstDerivative(x):
+def compute_first_derivative(x):
 	# This function should calculate the first derivative of a function x using
 	# Fourier transform.
 	# x doesn't has to be periodic.
@@ -228,8 +227,8 @@ def compute_tangent(points):
 		X[k] = Q[0]
 		Y[k] = Q[1]
 
-	dx = computeFirstDerivative(X);
-	dy = computeFirstDerivative(Y);
+	dx = compute_first_derivative(X);
+	dy = compute_first_derivative(Y);
 
 	d = numpy.divide(dy, dx)
 	teta = list(math.atan(x) for x in d)
@@ -272,6 +271,7 @@ def compute_tangent_alt(points):
 
 	return tangent
 
+
 def compute_thickness(target_profile, other_profile, tangents_target, tangents_other):
 	thicknesses = [0] * len(target_profile)
 
@@ -279,12 +279,12 @@ def compute_thickness(target_profile, other_profile, tangents_target, tangents_o
 
 	for i in xrange(1, len(target_profile) - 1):
 		try:
-			#Find the intersection between the line normal to the tangent, and each of the line segments making up the
+			# Find the intersection between the line normal to the tangent, and each of the line segments making up the
 			#opposite profile.
 
-			p1 = target_profile[i-1]
-			p2 = target_profile[i+1]
-			p_on_line = Point((p1.x + p2.x)/2.0, (p1.y + p2.y) / 2.0 )
+			p1 = target_profile[i - 1]
+			p2 = target_profile[i + 1]
+			p_on_line = Point((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0)
 
 			#The slope and y-intercept of the line normal to the tangent.
 			s1 = - 1.0 / tangents_target[i]
@@ -299,10 +299,10 @@ def compute_thickness(target_profile, other_profile, tangents_target, tangents_o
 
 			#TODO: Do something smarter here. If the database grows too large, this will have crappy runtime.
 			#Maybe restrict to along look at points within a window?
-			for j in xrange(1, len(other_profile)-1):
-				p1 = other_profile[j-1]
-				p2 = other_profile[j+1]
-				p_on_line = Point((p1.x + p2.x)/2.0, (p1.y + p2.y) / 2.0 )
+			for j in xrange(1, len(other_profile) - 1):
+				p1 = other_profile[j - 1]
+				p2 = other_profile[j + 1]
+				p_on_line = Point((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0)
 
 				s2 = tangents_other[j]
 				b2 = p_on_line.y - s2 * p_on_line.x
@@ -324,7 +324,8 @@ def compute_thickness(target_profile, other_profile, tangents_target, tangents_o
 			#output_svg.add(output_svg.line((0, b0), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(80, 0, 160, '%')))
 			#output_svg.add(output_svg.line((0, b1), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(10, 10, 16, '%')))
 			if (best_point != None):
-				output_svg.add(output_svg.line((best_point.x, best_point.y), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(10, 10, 16, '%')))
+				output_svg.add(output_svg.line((best_point.x, best_point.y), (target_profile[i].x, target_profile[i].y),
+											   stroke=svgwrite.rgb(10, 10, 16, '%')))
 		except ZeroDivisionError:
 			thicknesses[i] = sys.maxint
 
@@ -379,11 +380,22 @@ def compute_curvature(points):
 			curvature[i] = 0;
 	return curvature
 
-
 def save_fft_for_all_svgs(dir):
+	""" Goes through every .svg in the input directory, paramaterizes its curve into a series of points,
+	    and then computed a bunch of different metrics on those points.
+
+	    The results are stored as a dictionary (keyed by file name) of dictionaries (keyed by Metric name), pointing
+	    to a list of values, one for each generated point. Since computation is pretty slow, this dictionary is written
+	    out to a pick then can be imported by other scripts.
+
+	    When applicable, the various metrics are computed separately for the left and right profiles of the pottery sherd.
+
+	    :param dir: The directory in which to search for SVG files.
+
+	"""
+
 	fft_data = {}
 
-	''' Goes through every .svg in the input directory, and saves its fourier transform'''
 	for filename in os.listdir(dir):
 		if filename.endswith(".svg"):
 			path = get_path_from_svg(dir + filename)
@@ -402,35 +414,34 @@ def save_fft_for_all_svgs(dir):
 			fft_data[filename] = data
 
 			# If the svg didn't contain any path, then skip doing any calculation on it.
-			if path != []:
+			if path:
 				points = get_points_along_path(path)
 				left_profile_points, right_profile_points = split_profile_points(points)
 
 				draw_points_to_output_file(left_profile_points, right_profile_points, "out/output_" + filename);
 
-				data = {}
-
 				# Calculature the fourier transforms for each profile
 				data[Metric.LEFT_FFT_KEY] = compute_fft_points(left_profile_points)
-				data[Metric.LEFT_RIGHT_FFT_KEY] = compute_fft_points(right_profile_points)
+				data[Metric.RIGHT_FFT_KEY] = compute_fft_points(right_profile_points)
 
-				#calculate the curvature along each profile.
-				data[Metric.LEFT_LEFT_CURVATURE_KEY] = compute_curvature(left_profile_points)
-				data[Metric.LEFT_RIGHT_CURVATURE_KEY] = compute_curvature(right_profile_points)
+				# calculate the curvature along each profile.
+				data[Metric.LEFT_CURVATURE_KEY] = compute_curvature(left_profile_points)
+				data[Metric.RIGHT_CURVATURE_KEY] = compute_curvature(right_profile_points)
 
-				data[Metric.LEFT_LEFT_TANGENT_ALT_KEY] = compute_tangent_alt(left_profile_points)
-				data[Metric.LEFT_RIGHT_TANGENT_ALT_KEY] = compute_tangent_alt(right_profile_points)
+				data[Metric.LEFT_TANGENT_ALT_KEY] = compute_tangent_alt(left_profile_points)
+				data[Metric.RIGHT_TANGENT_ALT_KEY] = compute_tangent_alt(right_profile_points)
 
 				#calculate the direction of the tangent to the curbe along each profile.
-				data[Metric.LEFT_LEFT_TANGENT_KEY] = compute_tangent(left_profile_points)
-				data[Metric.LEFT_RIGHT_TANGENT_KEY] = compute_tangent(right_profile_points)
+				data[Metric.LEFT_TANGENT_KEY] = compute_tangent(left_profile_points)
+				data[Metric.RIGHT_TANGENT_KEY] = compute_tangent(right_profile_points)
 
 				#also keep trick of the point location.
-				data[Metric.LEFT_X_KEY] = list(p.x for p in points)
-				data[Metric.LEFT_Y_KEY] = list(p.y for p in points)
+				data[Metric.X_KEY] = list(p.x for p in points)
+				data[Metric.Y_KEY] = list(p.y for p in points)
 
 				data[Metric.THICKNESS_KEY] = compute_thickness(left_profile_points, right_profile_points, \
-											data[Metric.LEFT_TANGENT_ALT_KEY], data[Metric.RIGHT_TANGENT_ALT_KEY])
+															   data[Metric.LEFT_TANGENT_ALT_KEY],
+															   data[Metric.RIGHT_TANGENT_ALT_KEY])
 
 	pickle.dump(fft_data, open(DESC_OUTPUT_FILE, "wb"))
 
@@ -440,17 +451,17 @@ if __name__ == "__main__":
 		print "USAGE: python find_pottery_descriptors.py <svg file>"
 		exit(1)
 
-	#save_fft_for_all_svgs(sys.argv[1])
+	save_fft_for_all_svgs(sys.argv[1])
 
-	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_133_2012_9.svg")
-	points = get_points_along_path(path)
-	left_profile_points, right_profile_points = split_profile_points(points)
-	draw_points_to_output_file(left_profile_points, right_profile_points)
-
-	left_tan = compute_tangent_alt(left_profile_points)
-	right_tan = compute_tangent_alt(right_profile_points)
-	thickness = compute_thickness(left_profile_points, right_profile_points, left_tan, right_tan)
-	print thickness
-	print right_tan
+	# path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_52C_2012_2.svg")
+	# points = get_points_along_path(path)
+	# left_profile_points, right_profile_points = split_profile_points(points)
+	# draw_points_to_output_file(left_profile_points, right_profile_points)
+	#
+	# left_tan = compute_tangent_alt(left_profile_points)
+	# right_tan = compute_tangent_alt(right_profile_points)
+	# thickness = compute_thickness(left_profile_points, right_profile_points, left_tan, right_tan)
+	# print thickness
+	# print right_tan
 
 	print "The pottery descriptors have been written to the pickle: " + DESC_OUTPUT_FILE

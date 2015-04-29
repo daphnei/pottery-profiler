@@ -1,7 +1,5 @@
 __author__ = 'daphne'
 
-SEG_LENGTH = 3
-
 #Python2 does not have enums :( but this is supposed to act like one.
 class Metric:
 	#Note, when a new key is added, it should also be appended to the list bel
@@ -17,11 +15,23 @@ class Metric:
 	X_KEY = "x"								# Points generated along the right profile.
 	Y_KEY = "y"								# Points generated along the right profile.
 
-	ALL_KEYS = [RIGHT_FFT_KEY, RIGHT_CURVATURE_KEY, RIGHT_TANGENT_ALT_KEY]
-				#LEFT_FFT_KEY, RIGHT_FFT_KEY,
-				#LEFT_CURVATURE_KEY, RIGHT_CURVATURE_KEY,
-				#LEFT_TANGENT_ALT_KEY, RIGHT_TANGENT_ALT_KEY
-				#]
+	#The keys for all of the metrics.
+	ALL_KEYS = [
+				LEFT_FFT_KEY, RIGHT_FFT_KEY,
+				LEFT_CURVATURE_KEY, RIGHT_CURVATURE_KEY,
+				LEFT_TANGENT_KEY, RIGHT_TANGENT_KEY,
+				LEFT_TANGENT_ALT_KEY, RIGHT_TANGENT_ALT_KEY,
+				THICKNESS_KEY
+				]
+
+	#The keys for the metrics that actually generate sort of reasonable results.
+	GOOD_KEYS = [
+				LEFT_FFT_KEY, RIGHT_FFT_KEY,
+				LEFT_CURVATURE_KEY, RIGHT_CURVATURE_KEY,
+				LEFT_TANGENT_ALT_KEY, RIGHT_TANGENT_ALT_KEY
+				]
 
 
 DESC_OUTPUT_FILE = "sherd_data.pickle"
+SEG_LENGTH = 3
+NORMALIZE_METRICS = True

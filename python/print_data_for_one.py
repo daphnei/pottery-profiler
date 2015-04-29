@@ -39,5 +39,5 @@ if __name__ == "__main__":
 	# 	else:
 	# 		print(str(i) + "\t\t\t\t{:20.4f}\t\t\t\t{:.4f}".format(c2[i], c4[i]))
 
-	print one_data[X_KEY]
-	print one_data[Y_KEY]
+	print one_data[Metric.X_KEY]
+	print one_data[Metric.Y_KEY]
