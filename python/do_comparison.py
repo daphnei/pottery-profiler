@@ -88,7 +88,7 @@ def do_comp_with_all_metrics(target_name, metrics, weights=None):
 	:return: nothing
 	'''
 
-	all_data = pickle.load(open("a_" + DESC_OUTPUT_FILE, "rb"))
+	all_data = pickle.load(open(DESC_OUTPUT_FILE, "rb"))
 
 	# Find the one we are comparing against.
 	target_obj = all_data[target_name]
@@ -108,8 +108,14 @@ def do_comp_with_all_metrics(target_name, metrics, weights=None):
 
 		target_descriptors = numpy.asarray(target_obj[metric])
 
-		all_values_from_metric = reduce(lambda values, values_so_far: values + values_so_far,
-										(x[metric] for x in all_data.values()), [])
+
+		#Retrieve a list of all of the values computed for this metric over all the pottery sherds in the database.
+		all_values_from_metric = numpy.array(reduce(lambda values, values_so_far: values + values_so_far,
+											(x[metric] for x in all_data.values()), []))
+
+		#Get rid of all NaN values before normalizing.
+		if numpy.isnan(all_values_from_metric).any():
+			all_values_from_metric = all_values_from_metric[numpy.logical_not(numpy.isnan(all_values_from_metric))]
 
 		#Normalize all descriptors to a [0,1] range so that each metric can be weighted equally
 		norm_for_metric = numpy.linalg.norm(all_values_from_metric)
@@ -216,8 +222,8 @@ if __name__ == "__main__":
 	elif len(sys.argv) == 2:
 		print "Comparing " + sys.argv[1] + " using all metrics:"
 		do_comp_with_all_metrics(sys.argv[1],
-								 [Metric.RIGHT_FFT_KEY, Metric.RIGHT_CURVATURE_KEY, Metric.RIGHT_TANGENT_ALT_KEY]
-								 )
+								 [Metric.RIGHT_FFT_KEY, Metric.RIGHT_CURVATURE_KEY, Metric.RIGHT_TANGENT_ALT_KEY],
+								 )#[0, 0, 1])
 	else:
 		print "USAGE python do_comparison.py SVG_NAME [METRIC]"
 

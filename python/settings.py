@@ -33,5 +33,6 @@ class Metric:
 
 
 DESC_OUTPUT_FILE = "sherd_data.pickle"
+
+#How far to step along the curve before generating a new point.
 SEG_LENGTH = 3
-NORMALIZE_METRICS = True

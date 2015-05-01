@@ -263,7 +263,7 @@ def compute_tangent_alt(points):
 		p2 = points[i + 1]
 
 		if p2.x - p1.x == 0:
-			slope = sys.maxint
+			slope = float('NaN')
 		else:
 			slope = (p2.y - p1.y) / float(p2.x - p1.x)
 
@@ -327,7 +327,7 @@ def compute_thickness(target_profile, other_profile, tangents_target, tangents_o
 				output_svg.add(output_svg.line((best_point.x, best_point.y), (target_profile[i].x, target_profile[i].y),
 											   stroke=svgwrite.rgb(10, 10, 16, '%')))
 		except ZeroDivisionError:
-			thicknesses[i] = sys.maxint
+			thicknesses[i] = float('NaN')
 
 	output_svg.save()
 	return thicknesses
@@ -451,15 +451,15 @@ if __name__ == "__main__":
 		print "USAGE: python find_pottery_descriptors.py <svg file>"
 		exit(1)
 
-	save_fft_for_all_svgs(sys.argv[1])
+	# save_fft_for_all_svgs(sys.argv[1])
 
-	# path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_52C_2012_2.svg")
-	# points = get_points_along_path(path)
-	# left_profile_points, right_profile_points = split_profile_points(points)
+	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_99B_2012_1.svg")
+	points = get_points_along_path(path)
+	left_profile_points, right_profile_points = split_profile_points(points)
 	# draw_points_to_output_file(left_profile_points, right_profile_points)
 	#
 	# left_tan = compute_tangent_alt(left_profile_points)
-	# right_tan = compute_tangent_alt(right_profile_points)
+	right_tan = compute_tangent_alt(right_profile_points)
 	# thickness = compute_thickness(left_profile_points, right_profile_points, left_tan, right_tan)
 	# print thickness
 	# print right_tan
