@@ -96,7 +96,7 @@ def do_comp_with_all_metrics(target_name, metrics, weights=None):
 	#for each sherd in the database, store its average distance from the target
 	dists = {}
 
-	#If no weights were provided, default to equal weights.
+	#If no weights were provided, default to equal weights.3s
 	if weights is None:
 		weights = [1.0 / len(metrics)] * len(metrics)
 	else:
@@ -223,7 +223,7 @@ if __name__ == "__main__":
 		print "Comparing " + sys.argv[1] + " using all metrics:"
 		do_comp_with_all_metrics(sys.argv[1],
 								 [Metric.RIGHT_FFT_KEY, Metric.RIGHT_CURVATURE_KEY, Metric.RIGHT_TANGENT_ALT_KEY],
-								 )#[0, 0, 1])
+								 )#\[0, 0, 1])
 	else:
 		print "USAGE python do_comparison.py SVG_NAME [METRIC]"
 

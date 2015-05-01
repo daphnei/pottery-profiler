@@ -12,25 +12,39 @@ def FindIndex(dd, d):
 	return i;
 
 class Component(object):
-	'''A base class that all sVG components we support should extend.'''
+	'''
+	A base class that all SVG components that are supported. Right now this is only lines and Bezier curves.
+	'''
 
 	def get_length(self):
+		'''Get the length of this segment. For curves, this is the length around the curve.'''
 		return 0
 
 	def interpolate_points(self, fractions):
+		'''Returns a list of points at the specified fractions along the line.
+			For example if [0.5] was inputted, a point halfway along the line would be returned.'''
 		return None
 
 	def get_start_point(self):
+		'''Get the first point in the component'''
 		return None
 
 	def get_end_point(self):
+		'''Get the last point of the component'''
 		return None
 
 	def reverse(self):
+		'''Reverses the start and end points of the component.'''
 		return
 
 class MyLine(Component):
+	'''A wrapper around svg.path's Line class that adds some useful helper methods.'''
+
 	def __init__(self, ln):
+		'''
+		:param ln: A Line object.
+		'''
+
 		self.ln = ln
 
 	def get_length(self):
@@ -59,7 +73,9 @@ class MyBezCurve(Component):
 	'''A wrapper around svg.path's CubicBezier class that adds some useful helper methods.'''
 
 	def __init__(self, cb):
-		''' Input is a CubicBezier object. '''
+		'''
+		:param cb: A CubicBezier object.
+		'''
 
 		self.cb = cb
 		self.cached_arc_lengh = None
