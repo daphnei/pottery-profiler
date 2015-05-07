@@ -138,8 +138,9 @@ def draw_points_to_output_file(left_profile_points, right_profile_points, output
 
 
 def compute_fft_points(points):
-	# We only care about the x values since
-	# points_x = p.x for p in points
+	'''
+	Compute a fourier descriptor for each of the input points.
+	'''
 
 	coords = numpy.array(points).transpose()
 
@@ -160,6 +161,8 @@ def compute_fft_points(points):
 
 
 def dfourier(x, T):
+	#TRANSLATED OVER FROM THE MATLAB CODE
+
 	l = 2 * math.pi / T;
 	t = len(x);
 	f = numpy.fft.fft(x);
@@ -175,6 +178,7 @@ def dfourier(x, T):
 
 
 def compute_first_derivative(x):
+	# TRANSLATED OVER FROM THE MATLAB CODE
 	# This function should calculate the first derivative of a function x using
 	# Fourier transform.
 	# x doesn't has to be periodic.
@@ -211,6 +215,10 @@ def compute_first_derivative(x):
 
 
 def compute_tangent(points):
+	#TRANSLATED OVER FROM THE MATLAB CODE
+	#I don't really understand exactly what this is doing, but I think it is supposed to get
+	#the tangent along the curve. I copied this over from curve_tangent.m in the Matlab code.
+
 	x = list(p.x for p in points)
 	y = list(p.y for p in points)
 
@@ -273,6 +281,19 @@ def compute_tangent_alt(points):
 
 
 def compute_thickness(target_profile, other_profile, tangents_target, tangents_other):
+	'''
+
+	An attempt to compute the thickness of the sherd at each point in the target_profile.
+	It doesn't work very well.
+
+	TODO: Improve this function by making use of the medial axis.
+
+	:param target_profile: For each point in this profile, the width will be calculated.
+	:param other_profile: The opposite profile.
+	:param tangents_target: The slope of the tangent to the curve at each of the points in target_profile.
+	:param tangents_other: The slope of the tangent to the curve at each of the points in other_profile.
+	:return:
+	'''
 	thicknesses = [0] * len(target_profile)
 
 	output_svg = svgwrite.Drawing("temp.svg")
@@ -321,6 +342,8 @@ def compute_thickness(target_profile, other_profile, tangents_target, tangents_o
 			thicknesses[i] = min_dist
 
 
+			#Visualize the results to see how good they are.
+			#TODO: Remove this.
 			#output_svg.add(output_svg.line((0, b0), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(80, 0, 160, '%')))
 			#output_svg.add(output_svg.line((0, b1), (target_profile[i].x, target_profile[i].y), stroke=svgwrite.rgb(10, 10, 16, '%')))
 			if (best_point != None):
@@ -329,6 +352,7 @@ def compute_thickness(target_profile, other_profile, tangents_target, tangents_o
 		except ZeroDivisionError:
 			thicknesses[i] = float('NaN')
 
+	#Save the visualization.
 	output_svg.save()
 	return thicknesses
 
@@ -380,7 +404,7 @@ def compute_curvature(points):
 			curvature[i] = 0;
 	return curvature
 
-def save_fft_for_all_svgs(dir):
+def save_descriptors_for_al_svgs(dir):
 	""" Goes through every .svg in the input directory, paramaterizes its curve into a series of points,
 	    and then computed a bunch of different metrics on those points.
 
@@ -394,7 +418,7 @@ def save_fft_for_all_svgs(dir):
 
 	"""
 
-	fft_data = {}
+	all_data = {}
 
 	for filename in os.listdir(dir):
 		if filename.endswith(".svg"):
@@ -411,7 +435,7 @@ def save_fft_for_all_svgs(dir):
 			data[Metric.RIGHT_TANGENT_ALT_KEY] = []
 			data[Metric.THICKNESS_KEY] = []
 
-			fft_data[filename] = data
+			all_data[filename] = data
 
 			# If the svg didn't contain any path, then skip doing any calculation on it.
 			if path:
@@ -443,23 +467,23 @@ def save_fft_for_all_svgs(dir):
 															   data[Metric.LEFT_TANGENT_ALT_KEY],
 															   data[Metric.RIGHT_TANGENT_ALT_KEY])
 
-	pickle.dump(fft_data, open(DESC_OUTPUT_FILE, "wb"))
+	pickle.dump(all_data, open(DESC_OUTPUT_FILE, "wb"))
 
 
 if __name__ == "__main__":
 	if len(sys.argv) != 2:
-		print "USAGE: python find_pottery_descriptors.py <svg file>"
+		print "USAGE: python find_pottery_descriptors.py <directory>"
 		exit(1)
 
-	# save_fft_for_all_svgs(sys.argv[1])
+	save_descriptors_for_al_svgs(sys.argv[1])
 
-	path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_99B_2012_1.svg")
-	points = get_points_along_path(path)
-	left_profile_points, right_profile_points = split_profile_points(points)
+	# path = get_path_from_svg("/Users/daphne/Documents/School/CSC494/pottery-profiler/Pottery/AS_99B_2012_1.svg")
+	# points = get_points_along_path(path)
+	# left_profile_points, right_profile_points = split_profile_points(points)
 	# draw_points_to_output_file(left_profile_points, right_profile_points)
 	#
 	# left_tan = compute_tangent_alt(left_profile_points)
-	right_tan = compute_tangent_alt(right_profile_points)
+	# right_tan = compute_tangent_alt(right_profile_points)
 	# thickness = compute_thickness(left_profile_points, right_profile_points, left_tan, right_tan)
 	# print thickness
 	# print right_tan

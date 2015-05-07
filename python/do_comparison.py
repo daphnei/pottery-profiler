@@ -3,19 +3,10 @@ import scipy
 __author__ = 'daphne'
 import sys
 import numpy
-from point import Point
-import math
 import pickle
-import cmath
 from settings import *
-import numpy as np
-from scipy.sparse import *
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import Imputer
-import matplotlib.pyplot as plt
-from sklearn.datasets import load_digits
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import scale
+from scipy.sparse import *
 from scipy.cluster.vq import kmeans, vq
 
 
@@ -25,18 +16,23 @@ def get_max_desc_length(all_data, desc_type):
 	return max(len(sublist) for sublist in desc_lists)
 
 
-def kmeans_attempt():
-	# coo_matrix
+def kmeans_attempt(num_clusters = 3, pca_dimensions = 128):
+	"""
+	Attempt to do K-Means using the fourier transform and the curvature of each sherd.
+	The resulting cluster index of each sherd will be printed.
+
+	:param num_clusters: The number of clusters to create.
+	:param pca_dimensions: The number of components to reduce to when doing PCA.
+	"""
 
 	all_data = pickle.load(open("sherd_data.pickle", "rb"))
-
 
 	#get the max length of any curve descriptors and the max length of any fft descriptors
 	max_length = get_max_desc_length(all_data, Metric.RIGHT_FFT_KEY)
 
 	names = []
 
-	data_for_kmeans = np.zeros((len(all_data), 3 * max_length))  #Instead should be initing a Numpy array?
+	data_for_kmeans = numpy.zeros((len(all_data), 3 * max_length))  #Instead should be initing a Numpy array?
 	for i, (shape_name, shape_data), in enumerate(all_data.items()):
 		curve_descs = shape_data[Metric.RIGHT_CURVATURE_KEY]
 		fft_descs = shape_data[Metric.RIGHT_FFT_KEY]
@@ -47,12 +43,12 @@ def kmeans_attempt():
 
 		if n != 0:
 			#Pad the lists up to their maximum length.
-			curve_descs = curve_descs + ((max_length - len(curve_descs)) * [np.mean(curve_descs)])
-			fft_descs_real = fft_descs_real + ((max_length - len(fft_descs)) * [np.mean(fft_descs_real)])
-			fft_descs_imag = fft_descs_imag + ((max_length - len(fft_descs)) * [np.mean(fft_descs_imag)])
+			curve_descs = curve_descs + ((max_length - len(curve_descs)) * [numpy.mean(curve_descs)])
+			fft_descs_real = fft_descs_real + ((max_length - len(fft_descs)) * [numpy.mean(fft_descs_real)])
+			fft_descs_imag = fft_descs_imag + ((max_length - len(fft_descs)) * [numpy.mean(fft_descs_imag)])
 
 			#Append all the lists together.
-			combined_data = np.array(curve_descs + fft_descs_real + fft_descs_imag)  #This should be a row of the matrix
+			combined_data = numpy.array(curve_descs + fft_descs_real + fft_descs_imag)  #This should be a row of the matrix
 
 			# print
 			# print combined_data
@@ -65,9 +61,9 @@ def kmeans_attempt():
 	print ("Starting PCA")
 
 	#Reduce the dimensionality by some amount
-	reduced_data = data_for_kmeans  #PCA(n_components=20).fit_transform(data_for_kmeans)
+	reduced_data = PCA(n_components=pca_dimensions).fit_transform(data_for_kmeans)
 
-	codebook, distortion = kmeans(reduced_data, 4)
+	codebook, distortion = kmeans(reduced_data, num_clusters)
 
 	clusters, n = vq(reduced_data, codebook)
 

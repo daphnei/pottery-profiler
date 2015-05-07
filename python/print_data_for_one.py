@@ -10,6 +10,10 @@ import sys
 from settings import *
 
 if __name__ == "__main__":
+	'''
+		Prints the metrics computed for the specified pottery sherd.
+	'''
+
 	if len(sys.argv) != 2:
 		print "USAGE: python print_data_for_one.py <name>"
 		exit(1)
