@@ -264,6 +264,11 @@ def compute_tangent(points):
 
 
 def compute_tangent_alt(points):
+	"""
+	Computes the slope of the curve at each point. For vertical slopes, NaN is returned.
+	:param points: List of point sofrming the curbe.
+	:return:
+	"""
 	tangent = [0] * len(points)
 
 	for i in xrange(1, len(points) - 1):
