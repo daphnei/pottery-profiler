@@ -181,7 +181,7 @@ def compute_first_derivative(x):
 	# TRANSLATED OVER FROM THE MATLAB CODE
 	# This function should calculate the first derivative of a function x using
 	# Fourier transform.
-	# x doesn't has to be periodic.
+	# x doesn't have to be periodic.
 
 	t = len(x)
 	tt = numpy.array(list(range(1, t + 1)))
@@ -266,7 +266,7 @@ def compute_tangent(points):
 def compute_tangent_alt(points):
 	"""
 	Computes the slope of the curve at each point. For vertical slopes, NaN is returned.
-	:param points: List of point sofrming the curbe.
+	:param points: List of points forming the curve.
 	:return:
 	"""
 	tangent = [0] * len(points)
@@ -324,7 +324,7 @@ def compute_thickness(target_profile, other_profile, tangents_target, tangents_o
 			best_point = None
 
 			#TODO: Do something smarter here. If the database grows too large, this will have crappy runtime.
-			#Maybe restrict to along look at points within a window?
+			#Maybe restrict to only look at a subset of points that are nearby?
 			for j in xrange(1, len(other_profile) - 1):
 				p1 = other_profile[j - 1]
 				p2 = other_profile[j + 1]
